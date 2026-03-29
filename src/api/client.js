@@ -28,11 +28,23 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Creamos un objeto de error enriquecido
+    const responseData = error.response?.data;
+    const status = error.response?.status;
+    
     const message =
-      error.response?.data?.message ||
-      error.response?.data?.error ||
+      responseData?.message ||
+      responseData?.error ||
+      responseData?.detail ||
+      (typeof responseData === 'string' ? responseData : null) ||
       'Ocurrió un error inesperado.';
-    return Promise.reject(new Error(message));
+    
+    // Creamos una instancia de Error personalizada
+    const customError = new Error(message);
+    customError.status = status;
+    customError.details = responseData?.details || null; // El objeto con errores por campo
+    
+    return Promise.reject(customError);
   }
 );
 

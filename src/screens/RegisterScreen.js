@@ -11,39 +11,28 @@ export function RegisterScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [generalError, setGeneralError] = useState(null);
 
   const handleRegister = async () => {
-    // Validaciones básicas que replican CA.2, CA.3, CA.4
-    if (!username || !email || !password) {
-      setError('Por favor completa todos los campos obligatorios.');
-      return;
-    }
-    
-    if (username.length < 4 || username.length > 15) {
-      setError('El nombre de usuario debe tener entre 4 y 15 caracteres.');
-      return;
-    }
-
-    if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.');
-      return;
-    }
-
     try {
       setIsLoading(true);
-      setError(null);
+      setFieldErrors({});
+      setGeneralError(null);
       // 'acceptedTerms' como true en este MVP
       await usersApi.register(username, email, password, true);
       
-      // Si el registro fue exitoso, informamos al usuario y lo llevamos al Login
       Alert.alert(
         '¡Registro Exitoso!',
-        'Tu cuenta ha sido creada. Por favor verifica tu email si es necesario e inicia sesión.',
+        'Tu cuenta ha sido creada. Por favor verifica tu email e inicia sesión.',
         [{ text: 'Ir al Login', onPress: () => navigation.navigate('Login') }]
       );
     } catch (err) {
-      setError(err.message || 'Error al intentar crear la cuenta');
+      if (err.details) {
+        setFieldErrors(err.details);
+      } else {
+        setGeneralError(err.message || 'Error al intentar crear la cuenta');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -61,14 +50,14 @@ export function RegisterScreen({ navigation }) {
         </View>
 
         <View style={styles.form}>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {generalError ? <Text style={styles.errorText}>{generalError}</Text> : null}
 
           <AppInput
             label="Nombre de Usuario"
             placeholder="Mínimo 4 caracteres"
             value={username}
             onChangeText={setUsername}
-            autoCapitalize="none"
+            error={Array.isArray(fieldErrors.username) ? fieldErrors.username.join('. ') : fieldErrors.username}
           />
 
           <AppInput
@@ -76,18 +65,19 @@ export function RegisterScreen({ navigation }) {
             placeholder="ejemplo@correo.com"
             value={email}
             onChangeText={setEmail}
-            autoCapitalize="none"
             keyboardType="email-address"
+            error={Array.isArray(fieldErrors.email) ? fieldErrors.email.join('. ') : fieldErrors.email}
           />
 
           <AppInput
             label="Contraseña"
-            placeholder="Al menos 8 caracteres, mayúscula y número"
+            placeholder="Al menos 8 caracteres"
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
             showToggle
             onToggleSecure={() => setShowPassword(!showPassword)}
+            error={Array.isArray(fieldErrors.password) ? fieldErrors.password.join('. ') : fieldErrors.password}
           />
 
           <AppButton

@@ -12,21 +12,21 @@ export function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [generalError, setGeneralError] = useState(null);
 
   const handleLogin = async () => {
-    if (!identifier || !password) {
-      setError('Por favor completa todos los campos.');
-      return;
-    }
-
     try {
       setIsLoading(true);
-      setError(null);
+      setFieldErrors({});
+      setGeneralError(null);
       await login(identifier, password);
-      // Si el login es exitoso, AppNavigator cambiará automáticamente la pantalla porque 'user' ya no será null
     } catch (err) {
-      setError(err.message || 'Error al iniciar sesión');
+      if (err.details) {
+        setFieldErrors(err.details);
+      } else {
+        setGeneralError(err.message || 'Error al iniciar sesión');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -44,15 +44,14 @@ export function LoginScreen({ navigation }) {
         </View>
 
         <View style={styles.form}>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {generalError ? <Text style={styles.errorText}>{generalError}</Text> : null}
 
           <AppInput
             label="Email o Usuario"
             placeholder="ejemplo@correo.com o mi_usuario"
             value={identifier}
             onChangeText={setIdentifier}
-            autoCapitalize="none"
-            keyboardType="email-address"
+            error={Array.isArray(fieldErrors.identifier) ? fieldErrors.identifier.join('. ') : fieldErrors.identifier}
           />
 
           <AppInput
@@ -63,6 +62,7 @@ export function LoginScreen({ navigation }) {
             secureTextEntry={!showPassword}
             showToggle
             onToggleSecure={() => setShowPassword(!showPassword)}
+            error={Array.isArray(fieldErrors.password) ? fieldErrors.password.join('. ') : fieldErrors.password}
           />
 
           <AppButton
