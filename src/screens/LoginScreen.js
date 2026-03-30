@@ -4,8 +4,9 @@ import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
 import { colors, spacing, fontSizes } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { authApi } from '../api/auth';
 
-export function LoginScreen({ navigation }) {
+export function LoginScreen({ navigation, route }) {
   const { login } = useAuth();
   
   const [identifier, setIdentifier] = useState('');
@@ -14,6 +15,14 @@ export function LoginScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [generalError, setGeneralError] = useState(null);
+  const [showResend, setShowResend] = useState(false);
+
+  // Efecto para detectar si venimos del Registro
+  React.useEffect(() => {
+    if (route.params?.showResendPrompt) {
+      setShowResend(true);
+    }
+  }, [route.params]);
 
   const handleLogin = async () => {
     try {
@@ -26,6 +35,32 @@ export function LoginScreen({ navigation }) {
         setFieldErrors(err.details);
       } else {
         setGeneralError(err.message || 'Error al iniciar sesión');
+        // Si el mensaje dice que falta validar, mostramos el botón de reenvío
+        if (err.message && err.message.toLowerCase().includes('verific')) {
+          setShowResend(true);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!identifier || !identifier.includes('@')) {
+      Alert.alert('Atención', 'Por favor ingresa tu email en el campo de arriba para reenviar el código.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      await authApi.resendVerification(identifier);
+      Alert.alert('¡Enviado!', 'Si tu correo está asociado a una cuenta, pronto recibirás el código.');
+    } catch (err) {
+      // Si el error es 404 (no encontrado), mostramos el mismo mensaje de éxito por seguridad (evitar enumeración)
+      if (err.status === 404) {
+        Alert.alert('¡Enviado!', 'Si tu correo está asociado a una cuenta, pronto recibirás el código.');
+      } else {
+        setGeneralError(err.message || 'No se pudo reenviar el código.');
       }
     } finally {
       setIsLoading(false);
@@ -69,8 +104,17 @@ export function LoginScreen({ navigation }) {
             title="Olvidé mi contraseña"
             variant="text"
             onPress={() => navigation.navigate('ForgotPassword')}
-            style={styles.forgotPassword}
+            style={styles.textButton}
           />
+
+          {showResend && (
+            <AppButton
+              title="¿No recibiste el código? Reenviar"
+              variant="text"
+              onPress={handleResendCode}
+              style={styles.resendSmallButton}
+            />
+          )}
 
           <AppButton
             title="Iniciar Sesión"
@@ -123,7 +167,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     textAlign: 'center',
   },
-  forgotPassword: {
+  textButton: {
+    alignSelf: 'flex-end',
+    marginBottom: spacing.xs,
+  },
+  resendSmallButton: {
     alignSelf: 'flex-end',
     marginBottom: spacing.lg,
   },

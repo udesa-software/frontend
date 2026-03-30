@@ -9,6 +9,10 @@ export const authApi = {
   logout: () =>
     apiClient.post('/auth/logout'),
 
+  // POST /api/auth/resend-verification
+  resendVerification: (email) =>
+    apiClient.post('/auth/resend-verification', { email }),
+
   // POST /api/auth/forgot-password
   forgotPassword: (identifier) =>
     apiClient.post('/auth/forgot-password', { identifier }),
