@@ -25,7 +25,7 @@ export function RegisterScreen({ navigation }) {
       Alert.alert(
         '¡Registro Exitoso!',
         'Tu cuenta ha sido creada. Por favor verifica tu email e inicia sesión.',
-        [{ text: 'Ir al Login', onPress: () => navigation.navigate('Login') }]
+        [{ text: 'Ir al Login', onPress: () => navigation.navigate('Login', { showResendPrompt: true }) }]
       );
     } catch (err) {
       if (err.details) {
