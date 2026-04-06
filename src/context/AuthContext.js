@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi } from '../api/auth';
+import { usersApi } from '../api/users';
 
 const AuthContext = createContext(null);
 
@@ -51,8 +52,18 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const deleteAccount = async (password) => {
+    // CA.3: Requerimos contraseña actual y token (apiClient ya inyecta el token)
+    await usersApi.deleteAccount(password);
+    
+    // Si la llamada fue exitosa (no lanzó error), limpiamos sesión
+    await AsyncStorage.removeItem('authToken');
+    await AsyncStorage.removeItem('userData');
+    setUser(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );
