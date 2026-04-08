@@ -1,17 +1,20 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Linking from 'expo-linking';
 import { useAuth, AuthProvider } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { HomeScreen } from '../screens/HomeScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
-import { View, ActivityIndicator } from 'react-native';
-import { colors } from '../theme';
+import { View, ActivityIndicator, Text } from 'react-native';
+import { colors, spacing } from '../theme';
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
 const prefix = Linking.createURL('/');
 
@@ -23,6 +26,39 @@ const linking = {
     },
   },
 };
+
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          height: 60,
+          paddingBottom: spacing.sm,
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+      }}
+    >
+      <Tab.Screen 
+        name="Inicio" 
+        component={HomeScreen} 
+        options={{
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🏠</Text>
+        }}
+      />
+      <Tab.Screen 
+        name="Perfil" 
+        component={ProfileScreen} 
+        options={{
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>👤</Text>
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
 
 function Navigator() {
   const { user, isLoading } = useAuth();
@@ -39,13 +75,13 @@ function Navigator() {
     <NavigationContainer linking={linking}>
       <Stack.Navigator
         screenOptions={{
-          headerShown: false, // Ocultar el header por defecto para controlarlo nosotros
+          headerShown: false,
           contentStyle: { backgroundColor: colors.background },
         }}
       >
         {user ? (
-          // El usuario está logueado: mostramos las pantallas principales
-          <Stack.Screen name="Home" component={HomeScreen} />
+          // El usuario está logueado: mostramos las pestañas principales
+          <Stack.Screen name="Main" component={MainTabs} />
         ) : (
           // El usuario NO está logueado: mostramos el flujo de autenticación
           <>
@@ -68,3 +104,4 @@ export function AppNavigator() {
     </AuthProvider>
   );
 }
+
