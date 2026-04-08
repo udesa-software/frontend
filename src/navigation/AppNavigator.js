@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as Linking from 'expo-linking';
 import { useAuth, AuthProvider } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
@@ -11,6 +12,17 @@ import { View, ActivityIndicator } from 'react-native';
 import { colors } from '../theme';
 
 const Stack = createNativeStackNavigator();
+
+const prefix = Linking.createURL('/');
+
+const linking = {
+  prefixes: [prefix, 'udesamigos://'],
+  config: {
+    screens: {
+      ResetPassword: 'ResetPassword',
+    },
+  },
+};
 
 function Navigator() {
   const { user, isLoading } = useAuth();
@@ -24,7 +36,7 @@ function Navigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false, // Ocultar el header por defecto para controlarlo nosotros

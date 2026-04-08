@@ -2,6 +2,7 @@
   "expo": {
     "name": "users-mobile",
     "slug": "users-mobile",
+    "scheme": "udesamigos",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
