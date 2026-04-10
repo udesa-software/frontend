@@ -13,6 +13,10 @@ export const authApi = {
   resendVerification: (email) =>
     apiClient.post('/auth/resend-verification', { email }),
 
+  // GET /api/auth/verify-email?token=<uuid>
+  verifyEmail: (token) =>
+    apiClient.get('/auth/verify-email', { params: { token } }),
+
   // POST /api/auth/forgot-password
   forgotPassword: (identifier) =>
     apiClient.post('/auth/forgot-password', { identifier }),
