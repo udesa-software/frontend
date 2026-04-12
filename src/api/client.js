@@ -31,19 +31,19 @@ apiClient.interceptors.response.use(
     // Creamos un objeto de error enriquecido
     const responseData = error.response?.data;
     const status = error.response?.status;
-    
+
     const message =
       responseData?.message ||
       responseData?.error ||
       responseData?.detail ||
       (typeof responseData === 'string' ? responseData : null) ||
       'Ocurrió un error inesperado.';
-    
+
     // Creamos una instancia de Error personalizada
     const customError = new Error(message);
     customError.status = status;
     customError.details = responseData?.details || null; // El objeto con errores por campo
-    
+
     return Promise.reject(customError);
   }
 );

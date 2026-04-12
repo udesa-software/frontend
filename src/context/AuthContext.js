@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { authApi } from '../api/auth';
 import { usersApi } from '../api/users';
 
@@ -27,15 +28,22 @@ export function AuthProvider({ children }) {
     loadStoredSession();
   }, []);
 
+  // Helpers para SecureStore del refreshToken
+  const saveRefreshToken = (token) => SecureStore.setItemAsync('refreshToken', token);
+  const clearRefreshToken = () => SecureStore.deleteItemAsync('refreshToken');
+
   const login = async (identifier, password) => {
     const response = await authApi.login(identifier, password);
-    const { token, ...rest } = response.data;
+    const { accessToken, refreshToken, user, ...rest } = response.data;
 
-    // Guarda el token y los datos del usuario en el dispositivo
-    await AsyncStorage.setItem('authToken', token);
-    await AsyncStorage.setItem('userData', JSON.stringify(rest));
+    // accessToken en AsyncStorage (leído por el interceptor HTTP)
+    await AsyncStorage.setItem('authToken', accessToken);
+    await AsyncStorage.setItem('userData', JSON.stringify({ user, ...rest }));
 
-    setUser(rest);
+    // refreshToken en SecureStore (almacén cifrado del SO)
+    await saveRefreshToken(refreshToken);
+
+    setUser({ user, ...rest });
     return response.data;
   };
 
@@ -48,6 +56,7 @@ export function AuthProvider({ children }) {
     } finally {
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('userData');
+      await clearRefreshToken();
       setUser(null);
     }
   };
@@ -55,10 +64,11 @@ export function AuthProvider({ children }) {
   const deleteAccount = async (password) => {
     // CA.3: Requerimos contraseña actual y token (apiClient ya inyecta el token)
     await usersApi.deleteAccount(password);
-    
+
     // Si la llamada fue exitosa (no lanzó error), limpiamos sesión
     await AsyncStorage.removeItem('authToken');
     await AsyncStorage.removeItem('userData');
+    await clearRefreshToken();
     setUser(null);
   };
 
