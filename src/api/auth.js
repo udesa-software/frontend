@@ -1,3 +1,4 @@
+import * as SecureStore from 'expo-secure-store';
 import apiClient from './client';
 
 export const authApi = {
@@ -6,12 +7,24 @@ export const authApi = {
     apiClient.post('/auth/login', { identifier, password }),
 
   // POST /api/auth/logout
-  logout: () =>
-    apiClient.post('/auth/logout'),
+  logout: async () => {
+    const refreshToken = await SecureStore.getItemAsync('refreshToken');
+    return apiClient.post('/auth/logout', { refreshToken });
+  },
+
+  // POST /api/auth/refresh
+  refresh: async () => {
+    const refreshToken = await SecureStore.getItemAsync('refreshToken');
+    return apiClient.post('/auth/refresh', { refreshToken });
+  },
 
   // POST /api/auth/resend-verification
   resendVerification: (email) =>
     apiClient.post('/auth/resend-verification', { email }),
+
+  // GET /api/auth/verify-email?token=<uuid>
+  verifyEmail: (token) =>
+    apiClient.get('/auth/verify-email', { params: { token } }),
 
   // POST /api/auth/forgot-password
   forgotPassword: (identifier) =>

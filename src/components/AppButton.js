@@ -9,6 +9,7 @@ export function AppButton({
   isLoading = false,
   disabled = false,
   style,
+  textStyle,
   ...props
 }) {
   const getContainerStyle = () => {
@@ -51,11 +52,12 @@ export function AppButton({
       {isLoading ? (
         <ActivityIndicator color={variant === 'primary' ? colors.text : colors.primary} />
       ) : (
-        <Text style={[styles.text, getTextStyle()]}>{title}</Text>
+        <Text style={[styles.text, getTextStyle(), textStyle]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
