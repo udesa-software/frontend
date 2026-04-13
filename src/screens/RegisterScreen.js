@@ -45,7 +45,7 @@ export function RegisterScreen({ navigation }) {
     >
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Text style={styles.title}>Crear Cuenta</Text>
+          <Text style={styles.title} testID="register-title">Crear Cuenta</Text>
           <Text style={styles.subtitle}>Únete para disfrutar de la experiencia</Text>
         </View>
 
@@ -81,6 +81,7 @@ export function RegisterScreen({ navigation }) {
           />
 
           <AppButton
+            testID="register-button"
             title="Crear Cuenta"
             onPress={handleRegister}
             isLoading={isLoading}
