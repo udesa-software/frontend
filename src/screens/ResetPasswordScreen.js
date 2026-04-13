@@ -111,7 +111,7 @@ export function ResetPasswordScreen({ navigation, route }) {
     >
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Text style={styles.title}>Nueva Contraseña</Text>
+          <Text style={styles.title} testID="reset-password-title">Nueva Contraseña</Text>
           <Text style={styles.subtitle}>Elige una contraseña segura que no hayas usado antes.</Text>
         </View>
 
