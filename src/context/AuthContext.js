@@ -38,12 +38,14 @@ export function AuthProvider({ children }) {
 
     // accessToken en AsyncStorage (leído por el interceptor HTTP)
     await AsyncStorage.setItem('authToken', accessToken);
-    await AsyncStorage.setItem('userData', JSON.stringify({ user, ...rest }));
+    
+    // Guardar directamente el objeto 'user', no un objeto con la llave 'user'
+    await AsyncStorage.setItem('userData', JSON.stringify(user));
 
     // refreshToken en SecureStore (almacén cifrado del SO)
     await saveRefreshToken(refreshToken);
 
-    setUser({ user, ...rest });
+    setUser(user);
     return response.data;
   };
 
