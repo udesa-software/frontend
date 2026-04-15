@@ -100,13 +100,10 @@ describe('ProfileScreen', () => {
   });
 
   it('handles edit profile correctly', async () => {
-    const { getByText, getByPlaceholderText, queryByText } = render(<ProfileScreen />);
+    const { getAllByText, getByText, getByPlaceholderText, queryByText } = render(<ProfileScreen />);
     
-    // Open edit modal
-    fireEvent.press(getByText('Editar Perfil'));
-    
-    // Should see edit modal
-    expect(getByText('Editar Perfil')).toBeTruthy();
+    // Open edit modal using getAllByText since both the button and Modal title share the same text
+    fireEvent.press(getAllByText('Editar Perfil')[0]);
 
     const usernameInput = getByPlaceholderText('Ingresa tu nombre de usuario');
     const bioInput = getByPlaceholderText('Cuéntanos algo sobre ti...');
@@ -122,9 +119,9 @@ describe('ProfileScreen', () => {
   });
 
   it('shows error if username is empty in edit modal', async () => {
-    const { getByText, getByPlaceholderText, findByText } = render(<ProfileScreen />);
+    const { getAllByText, getByText, getByPlaceholderText, findByText } = render(<ProfileScreen />);
     
-    fireEvent.press(getByText('Editar Perfil'));
+    fireEvent.press(getAllByText('Editar Perfil')[0]);
     
     const usernameInput = getByPlaceholderText('Ingresa tu nombre de usuario');
     fireEvent.changeText(usernameInput, '   '); // only spaces
