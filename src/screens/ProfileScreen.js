@@ -11,13 +11,13 @@ export function ProfileScreen() {
   // Estados para el Modal de Edición
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editUsername, setEditUsername] = useState('');
-  const [editBio, setEditBio] = useState('');
+  const [editBiography, setEditBiography] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [editError, setEditError] = useState('');
 
   const openEditModal = () => {
     setEditUsername(user.username || '');
-    setEditBio(user.bio || '');
+    setEditBiography(user.biography || '');
     setEditError('');
     setIsEditModalVisible(true);
   };
@@ -32,7 +32,7 @@ export function ProfileScreen() {
     try {
       setIsSaving(true);
       setEditError('');
-      await updateProfile({ username: trimmedUsername, bio: editBio });
+      await updateProfile({ username: trimmedUsername, biography: editBiography });
       setIsEditModalVisible(false);
     } catch (err) {
       const errMsg = err.response?.data?.message || err.message || 'Error al actualizar perfil.';
@@ -82,7 +82,7 @@ export function ProfileScreen() {
         </View>
         <Text style={styles.username}>{user.username}</Text>
         <Text style={styles.email}>{user.email}</Text>
-        {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+        {user.biography ? <Text style={styles.bio}>{user.biography}</Text> : null}
         
         <AppButton
           title="Editar Perfil"
@@ -155,8 +155,8 @@ export function ProfileScreen() {
               <AppInput
                 label="Biografía"
                 placeholder="Cuéntanos algo sobre ti..."
-                value={editBio}
-                onChangeText={setEditBio}
+                value={editBiography}
+                onChangeText={setEditBiography}
                 maxLength={150}
                 multiline
                 numberOfLines={3}
