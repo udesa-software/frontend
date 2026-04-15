@@ -72,8 +72,16 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const updateProfile = async (data) => {
+    const response = await usersApi.updateProfile(data);
+    // Asumimos que response.data trae los datos actualizados
+    const updatedUser = { ...user, ...response.data };
+    await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, deleteAccount }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, deleteAccount, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
