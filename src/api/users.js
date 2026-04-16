@@ -9,4 +9,12 @@ export const usersApi = {
   // POST /api/users/delete
   deleteAccount: (password) =>
     apiClient.post('/users/delete', { password }),
+
+  // GET /api/users/preferences
+  getPreferences: () =>
+    apiClient.get('/users/preferences'),
+
+  // PATCH /api/users/preferences
+  updatePreferences: (data) =>
+    apiClient.patch('/users/preferences', data),
 };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Modal, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
@@ -7,6 +8,7 @@ import { colors, spacing, fontSizes, radii } from '../theme';
 
 export function ProfileScreen() {
   const { user, logout, deleteAccount } = useAuth();
+  const navigation = useNavigation();
   
   // Estados para el Modal de eliminación
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
@@ -43,6 +45,13 @@ export function ProfileScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.settingsIcon} 
+          onPress={() => navigation.navigate('Preferences')}
+        >
+          <Text style={{ fontSize: 24 }}>⚙️</Text>
+        </TouchableOpacity>
+
         <View style={styles.avatarPlaceholder}>
           <Text style={styles.avatarText}>{user.username?.charAt(0).toUpperCase()}</Text>
         </View>
@@ -150,6 +159,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.xl,
     marginBottom: spacing.xxl,
+    position: 'relative',
+  },
+  settingsIcon: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    padding: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radii.round,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   avatarPlaceholder: {
     width: 80,
