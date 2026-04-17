@@ -11,6 +11,14 @@ const mockUser = {
   role: 'Usuario'
 };
 
+const mockNavigate = jest.fn();
+
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({
+    navigate: mockNavigate,
+  }),
+}));
+
 jest.mock('../../context/AuthContext', () => ({
   useAuth: () => ({
     user: mockUser,
@@ -95,5 +103,12 @@ describe('ProfileScreen', () => {
     // Modal should be gone or at least the content hidden by visible=false logic
     // (Note: in React Native testing-library, components in Modal might still be in the tree 
     // depending on mock implementation, but we check if it handles visibility)
+  });
+
+  it('navigates to Preferences when settings icon is pressed', () => {
+    const { getByText } = render(<ProfileScreen />);
+    
+    fireEvent.press(getByText('⚙️'));
+    expect(mockNavigate).toHaveBeenCalledWith('Preferences');
   });
 });
