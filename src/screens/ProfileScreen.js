@@ -6,8 +6,42 @@ import { AppInput } from '../components/AppInput';
 import { colors, spacing, fontSizes, radii } from '../theme';
 
 export function ProfileScreen() {
-  const { user, logout, deleteAccount } = useAuth();
+  const { user, logout, deleteAccount, updateProfile } = useAuth();
   
+  // Estados para el Modal de Edición
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editUsername, setEditUsername] = useState('');
+  const [editBiography, setEditBiography] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  const openEditModal = () => {
+    setEditUsername(user.username || '');
+    setEditBiography(user.biography || '');
+    setEditError('');
+    setIsEditModalVisible(true);
+  };
+
+  const handleSaveProfile = async () => {
+    const trimmedUsername = editUsername.trim();
+    if (!trimmedUsername) {
+      setEditError('El nombre de usuario es obligatorio.');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setEditError('');
+      await updateProfile({ username: trimmedUsername, biography: editBiography });
+      setIsEditModalVisible(false);
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || 'Error al actualizar perfil.';
+      setEditError(errMsg);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Estados para el Modal de eliminación
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -48,6 +82,14 @@ export function ProfileScreen() {
         </View>
         <Text style={styles.username}>{user.username}</Text>
         <Text style={styles.email}>{user.email}</Text>
+        {user.biography ? <Text style={styles.bio}>{user.biography}</Text> : null}
+        
+        <AppButton
+          title="Editar Perfil"
+          variant="secondary"
+          onPress={openEditModal}
+          style={styles.editBtn}
+        />
       </View>
 
       <View style={styles.section}>
@@ -85,6 +127,66 @@ export function ProfileScreen() {
         onPress={logout}
         style={styles.logoutBtn}
       />
+
+      {/* Modal de Edición de Perfil */}
+      <Modal
+        visible={isEditModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalContent}
+          >
+            <ScrollView contentContainerStyle={styles.modalScroll}>
+              <Text style={styles.modalTitle}>Editar Perfil</Text>
+
+              {editError ? <Text style={styles.errorText}>{editError}</Text> : null}
+
+              <AppInput
+                label="Nombre de Usuario"
+                placeholder="Ingresa tu nombre de usuario"
+                value={editUsername}
+                onChangeText={setEditUsername}
+                editable={!isSaving}
+              />
+              <AppInput
+                label="Biografía"
+                placeholder="Cuéntanos algo sobre ti..."
+                value={editBiography}
+                onChangeText={setEditBiography}
+                maxLength={150}
+                multiline
+                numberOfLines={3}
+                editable={!isSaving}
+              />
+              <AppInput
+                label="Correo Electrónico (No modificable)"
+                value={user.email}
+                editable={false}
+              />
+              
+              <View style={styles.modalActions}>
+                <AppButton
+                  title="Cancelar"
+                  variant="secondary"
+                  onPress={() => setIsEditModalVisible(false)}
+                  style={styles.actionBtn}
+                  disabled={isSaving}
+                />
+                <AppButton
+                  title="Guardar Cambios"
+                  onPress={handleSaveProfile}
+                  isLoading={isSaving}
+                  style={styles.actionBtn}
+                />
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
       {/* Modal de Confirmación de Eliminación */}
       <Modal
@@ -174,6 +276,24 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.textMuted,
     marginTop: spacing.xs,
+  },
+  bio: {
+    fontSize: fontSizes.md,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  editBtn: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: fontSizes.sm,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
   section: {
     marginBottom: spacing.xl,

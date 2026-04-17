@@ -38,12 +38,14 @@ export function AuthProvider({ children }) {
 
     // accessToken en AsyncStorage (leído por el interceptor HTTP)
     await AsyncStorage.setItem('authToken', accessToken);
-    await AsyncStorage.setItem('userData', JSON.stringify({ user, ...rest }));
+    
+    // Guardar directamente el objeto 'user', no un objeto con la llave 'user'
+    await AsyncStorage.setItem('userData', JSON.stringify(user));
 
     // refreshToken en SecureStore (almacén cifrado del SO)
     await saveRefreshToken(refreshToken);
 
-    setUser({ user, ...rest });
+    setUser(user);
     return response.data;
   };
 
@@ -72,8 +74,16 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const updateProfile = async (data) => {
+    const response = await usersApi.updateProfile(data);
+    // Asumimos que response.data trae los datos actualizados
+    const updatedUser = { ...user, ...response.data };
+    await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, deleteAccount }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, deleteAccount, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
