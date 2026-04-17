@@ -25,4 +25,5 @@ web-build/
 *.swp
 *.bak
 
+# coverage
 coverage/
