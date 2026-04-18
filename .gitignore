@@ -24,3 +24,6 @@ web-build/
 *.orig
 *.swp
 *.bak
+
+# coverage
+coverage/

@@ -12,6 +12,14 @@ const mockUser = {
   role: 'Usuario'
 };
 
+const mockNavigate = jest.fn();
+
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({
+    navigate: mockNavigate,
+  }),
+}));
+
 jest.mock('../../context/AuthContext', () => ({
   useAuth: () => ({
     user: mockUser,
@@ -99,6 +107,13 @@ describe('ProfileScreen', () => {
     // depending on mock implementation, but we check if it handles visibility)
   });
 
+  it('navigates to Preferences when settings icon is pressed', () => {
+    const { getByText } = render(<ProfileScreen />);
+    
+    fireEvent.press(getByText('⚙️'));
+    expect(mockNavigate).toHaveBeenCalledWith('Preferences');
+  });
+  
   it('handles edit profile correctly', async () => {
     const { getAllByText, getByText, getByPlaceholderText, queryByText } = render(<ProfileScreen />);
     

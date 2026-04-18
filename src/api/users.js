@@ -9,6 +9,13 @@ export const usersApi = {
   deleteAccount: (password) =>
     apiClient.post('/users/delete', { password }),
 
+  // GET /api/users/preferences
+  getPreferences: () =>
+    apiClient.get('/users/preferences'),
+
+  // PATCH /api/users/preferences
+  updatePreferences: (data) =>
+    apiClient.patch('/users/preferences', data),
   // PATCH /api/users/profile - H6
   updateProfile: (data) =>
     apiClient.patch('/users/profile', data),

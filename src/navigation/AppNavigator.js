@@ -10,6 +10,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
+import { PreferencesScreen } from '../screens/PreferencesScreen';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { colors, spacing } from '../theme';
 
@@ -80,8 +81,15 @@ function Navigator() {
         }}
       >
         {user ? (
-          // El usuario está logueado: mostramos las pestañas principales
-          <Stack.Screen name="Main" component={MainTabs} />
+          // El usuario está logueado: mostramos las pestañas principales y pantallas anidadas
+          <Stack.Group>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen 
+              name="Preferences" 
+              component={PreferencesScreen} 
+              options={{ presentation: 'modal' }}
+            />
+          </Stack.Group>
         ) : (
           // El usuario NO está logueado: mostramos el flujo de autenticación
           <>
