@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
 import { colors, spacing, fontSizes } from '../theme';
@@ -13,14 +13,30 @@ export function RegisterScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [generalError, setGeneralError] = useState(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  const showTerms = () => {
+    Alert.alert(
+      'Términos y Condiciones',
+      'Al usar UdeSA-migos, aceptás que recolectamos y almacenamos tu ubicación geográfica únicamente con el fin de conectarte con otros usuarios cercanos. No compartiremos tu información con terceros sin tu consentimiento. Podés eliminar tu cuenta y todos tus datos en cualquier momento desde la sección de Perfil.',
+      [{ text: 'Entendido' }]
+    );
+  };
+
+  const showPrivacy = () => {
+    Alert.alert(
+      'Política de Privacidad',
+      'Tus datos de ubicación se actualizan con la frecuencia configurada por vos y solo son visibles por otros usuarios registrados. Los datos se almacenan de forma segura y se aplican medidas técnicas para proteger tu información personal. Regido por las leyes de protección de datos de Argentina.',
+      [{ text: 'Entendido' }]
+    );
+  };
 
   const handleRegister = async () => {
     try {
       setIsLoading(true);
       setFieldErrors({});
       setGeneralError(null);
-      // 'acceptedTerms' como true en este MVP
-      await usersApi.register(username, email, password, true);
+      await usersApi.register(username, email, password, acceptedTerms);
       
       Alert.alert(
         '¡Registro Exitoso!',
@@ -85,8 +101,25 @@ export function RegisterScreen({ navigation }) {
             title="Crear Cuenta"
             onPress={handleRegister}
             isLoading={isLoading}
+            disabled={!acceptedTerms}
             style={styles.registerBtn}
           />
+
+          <View style={styles.checkboxRow}>
+            <TouchableOpacity
+              testID="terms-checkbox"
+              style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}
+              onPress={() => setAcceptedTerms(!acceptedTerms)}
+            >
+              {acceptedTerms && <Text style={styles.checkmark}>✓</Text>}
+            </TouchableOpacity>
+            <Text style={styles.checkboxLabel}>
+              He leído y acepto los{' '}
+              <Text style={styles.link} onPress={showTerms}>Términos y Condiciones</Text>
+              {' '}y la{' '}
+              <Text style={styles.link} onPress={showPrivacy}>Política de Privacidad</Text>
+            </Text>
+          </View>
         </View>
 
         <View style={styles.footer}>
@@ -135,6 +168,43 @@ const styles = StyleSheet.create({
   },
   registerBtn: {
     marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    marginTop: 2,
+    flexShrink: 0,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    lineHeight: 20,
+  },
+  link: {
+    color: colors.primary,
+    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',

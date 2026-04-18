@@ -30,6 +30,22 @@ describe('RegisterScreen', () => {
     expect(getByPlaceholderText('Mínimo 4 caracteres')).toBeTruthy();
     expect(getByPlaceholderText('ejemplo@correo.com')).toBeTruthy();
     expect(getByPlaceholderText('Al menos 8 caracteres')).toBeTruthy();
+    // Checkbox and links
+    expect(getByTestId('terms-checkbox')).toBeTruthy();
+    expect(getByText('Términos y Condiciones')).toBeTruthy();
+    expect(getByText('Política de Privacidad')).toBeTruthy();
+  });
+
+  it('register button is disabled until terms are accepted', () => {
+    const { getByTestId } = renderScreen();
+    const button = getByTestId('register-button');
+    // Initially disabled because acceptedTerms = false
+    expect(button.props.accessibilityState?.disabled ?? button.props.disabled).toBeTruthy();
+
+    // Tick the checkbox
+    fireEvent.press(getByTestId('terms-checkbox'));
+    // Now it should be enabled
+    expect(button.props.accessibilityState?.disabled ?? button.props.disabled).toBeFalsy();
   });
 
   it('calls usersApi.register with correct arguments on submit', async () => {
@@ -40,6 +56,9 @@ describe('RegisterScreen', () => {
     fireEvent.changeText(getByPlaceholderText('Mínimo 4 caracteres'), 'johndoe');
     fireEvent.changeText(getByPlaceholderText('ejemplo@correo.com'), 'john@test.com');
     fireEvent.changeText(getByPlaceholderText('Al menos 8 caracteres'), 'password123');
+
+    // Accept terms before submitting
+    fireEvent.press(getByTestId('terms-checkbox'));
 
     await act(async () => {
       fireEvent.press(getByTestId('register-button'));
@@ -66,6 +85,9 @@ describe('RegisterScreen', () => {
     fireEvent.changeText(getByPlaceholderText('ejemplo@correo.com'), 'john@test.com');
     fireEvent.changeText(getByPlaceholderText('Al menos 8 caracteres'), 'password123');
 
+    // Accept terms
+    fireEvent.press(getByTestId('terms-checkbox'));
+
     await act(async () => {
       fireEvent.press(getByTestId('register-button'));
     });
@@ -86,6 +108,7 @@ describe('RegisterScreen', () => {
     fireEvent.changeText(getByPlaceholderText('Mínimo 4 caracteres'), 'johndoe');
     fireEvent.changeText(getByPlaceholderText('ejemplo@correo.com'), 'existing@test.com');
     fireEvent.changeText(getByPlaceholderText('Al menos 8 caracteres'), 'password123');
+    fireEvent.press(getByTestId('terms-checkbox'));
 
     await act(async () => {
       fireEvent.press(getByTestId('register-button'));
@@ -104,6 +127,7 @@ describe('RegisterScreen', () => {
     fireEvent.changeText(getByPlaceholderText('Mínimo 4 caracteres'), 'ab');
     fireEvent.changeText(getByPlaceholderText('ejemplo@correo.com'), 'ab@test.com');
     fireEvent.changeText(getByPlaceholderText('Al menos 8 caracteres'), 'password123');
+    fireEvent.press(getByTestId('terms-checkbox'));
 
     await act(async () => {
       fireEvent.press(getByTestId('register-button'));
@@ -120,12 +144,33 @@ describe('RegisterScreen', () => {
     fireEvent.changeText(getByPlaceholderText('Mínimo 4 caracteres'), 'johndoe');
     fireEvent.changeText(getByPlaceholderText('ejemplo@correo.com'), 'john@test.com');
     fireEvent.changeText(getByPlaceholderText('Al menos 8 caracteres'), 'password123');
+    fireEvent.press(getByTestId('terms-checkbox'));
 
     await act(async () => {
       fireEvent.press(getByTestId('register-button'));
     });
 
     expect(await findByText('Error al intentar crear la cuenta')).toBeTruthy();
+  });
+
+  it('shows Términos y Condiciones alert when link is pressed', () => {
+    const { getByText } = renderScreen();
+    fireEvent.press(getByText('Términos y Condiciones'));
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Términos y Condiciones',
+      expect.any(String),
+      expect.any(Array)
+    );
+  });
+
+  it('shows Política de Privacidad alert when link is pressed', () => {
+    const { getByText } = renderScreen();
+    fireEvent.press(getByText('Política de Privacidad'));
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Política de Privacidad',
+      expect.any(String),
+      expect.any(Array)
+    );
   });
 
   it('navigates to Login when "Iniciar Sesión" link is pressed', () => {
