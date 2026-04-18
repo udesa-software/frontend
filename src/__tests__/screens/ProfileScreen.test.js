@@ -112,6 +112,8 @@ describe('ProfileScreen', () => {
     
     fireEvent.press(getByText('⚙️'));
     expect(mockNavigate).toHaveBeenCalledWith('Preferences');
+  });
+  
   it('handles edit profile correctly', async () => {
     const { getAllByText, getByText, getByPlaceholderText, queryByText } = render(<ProfileScreen />);
     
