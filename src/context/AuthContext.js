@@ -49,6 +49,13 @@ export function AuthProvider({ children }) {
     return response.data;
   };
 
+  const clearLocalSession = async () => {
+    await AsyncStorage.removeItem('authToken');
+    await AsyncStorage.removeItem('userData');
+    await clearRefreshToken();
+    setUser(null);
+  };
+
   const logout = async () => {
     try {
       await authApi.logout();
@@ -56,10 +63,7 @@ export function AuthProvider({ children }) {
       // Si el servidor falla, igual limpiamos localmente
       console.warn('Error al hacer logout en servidor:', err.message);
     } finally {
-      await AsyncStorage.removeItem('authToken');
-      await AsyncStorage.removeItem('userData');
-      await clearRefreshToken();
-      setUser(null);
+      await clearLocalSession();
     }
   };
 
@@ -83,7 +87,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, deleteAccount, updateProfile }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, clearLocalSession, deleteAccount, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

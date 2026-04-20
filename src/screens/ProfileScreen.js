@@ -117,6 +117,16 @@ export function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Seguridad</Text>
+        <AppButton
+          title="Cambiar Contraseña"
+          variant="secondary"
+          onPress={() => navigation.navigate('ChangePassword')}
+          style={styles.securityBtn}
+        />
+      </View>
+
+      <View style={styles.section}>
         <Text style={[styles.sectionTitle, styles.dangerTitle]}>Zona de Peligro</Text>
         <AppButton
           title="Eliminar Cuenta"
@@ -355,6 +365,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSizes.md,
     fontWeight: '500',
+  },
+  securityBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   deleteBtn: {
     borderColor: colors.error,

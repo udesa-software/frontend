@@ -11,6 +11,7 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { PreferencesScreen } from '../screens/PreferencesScreen';
+import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { colors, spacing } from '../theme';
 
@@ -88,6 +89,10 @@ function Navigator() {
               name="Preferences" 
               component={PreferencesScreen} 
               options={{ presentation: 'modal' }}
+            />
+            <Stack.Screen
+              name="ChangePassword"
+              component={ChangePasswordScreen}
             />
           </Stack.Group>
         ) : (

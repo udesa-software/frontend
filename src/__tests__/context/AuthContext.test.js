@@ -86,6 +86,19 @@ describe('AuthContext', () => {
     expect(authApi.logout).toHaveBeenCalled();
   });
 
+  it('handles clearLocalSession correctly', async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      await result.current.clearLocalSession();
+    });
+
+    expect(result.current.user).toBeNull();
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('authToken');
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('userData');
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('refreshToken');
+  });
+
   it('handles deleteAccount correctly', async () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
 
