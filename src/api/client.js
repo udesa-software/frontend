@@ -1,5 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 // Lee la URL de la API del archivo .env (prefijo EXPO_PUBLIC_)
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000/api';
@@ -11,6 +12,21 @@ const apiClient = axios.create({
   },
   timeout: 10000,
 });
+
+// Variables para manejar el refresco de token y evitar bucles
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
 // Interceptor de request: inyecta el token JWT en cada petición si existe
 apiClient.interceptors.request.use(
@@ -24,13 +40,70 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor de response: extrae el mensaje de error del backend
+// Interceptor de response: extrae el mensaje de error del backend y maneja 401
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Creamos un objeto de error enriquecido
+  async (error) => {
+    const originalRequest = error.config;
     const responseData = error.response?.data;
     const status = error.response?.status;
+
+    // Si es un 401 y el error es por token expirado, intentamos refresh
+    // Evitamos reintentar si la propia petición de refresh falla (originalRequest._retry)
+    if (
+      status === 401 &&
+      responseData?.error === 'Token inválido o expirado' &&
+      !originalRequest._retry
+    ) {
+      if (isRefreshing) {
+        // Si ya hay un refresh en curso, encolamos el pedido
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = await SecureStore.getItemAsync('refreshToken');
+        if (!refreshToken) throw new Error('No hay refresh token');
+
+        // Llamada directa para evitar el interceptor de request que pondría el token viejo
+        // Usamos la instancia actual pero sin que el interceptor de request afecte si es posible
+        // O simplemente pasamos headers vacíos si fuera necesario, pero la gateway ya admite /refresh público
+        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+        
+        const { accessToken, refreshToken: newRefreshToken } = data;
+
+        await AsyncStorage.setItem('authToken', accessToken);
+        if (newRefreshToken) {
+          await SecureStore.setItemAsync('refreshToken', newRefreshToken);
+        }
+
+        processQueue(null, accessToken);
+        isRefreshing = false;
+
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        isRefreshing = false;
+
+        // Si falla el refresh, limpiamos sesión local
+        await AsyncStorage.removeItem('authToken');
+        await AsyncStorage.removeItem('userData');
+        await SecureStore.deleteItemAsync('refreshToken');
+        
+        // El error se propagará y la UI podrá reaccionar (ej: redirigir a login)
+        return Promise.reject(refreshError);
+      }
+    }
 
     const message =
       responseData?.message ||
@@ -39,10 +112,9 @@ apiClient.interceptors.response.use(
       (typeof responseData === 'string' ? responseData : null) ||
       'Ocurrió un error inesperado.';
 
-    // Creamos una instancia de Error personalizada
     const customError = new Error(message);
     customError.status = status;
-    customError.details = responseData?.details || null; // El objeto con errores por campo
+    customError.details = responseData?.details || null;
 
     return Promise.reject(customError);
   }
