@@ -1,13 +1,13 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 
-jest.mock('../../context/AuthContext', () => ({
+jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => ({
     user: { username: 'mateo', email: 'mateo@test.com' }
   }),
 }));
 
-import { HomeScreen } from '../../screens/HomeScreen';
+import { HomeScreen } from '../../src/screens/HomeScreen';
 
 describe('HomeScreen', () => {
   it('renders welcome message with username', () => {

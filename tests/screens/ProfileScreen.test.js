@@ -20,7 +20,7 @@ jest.mock('@react-navigation/native', () => ({
   }),
 }));
 
-jest.mock('../../context/AuthContext', () => ({
+jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => ({
     user: mockUser,
     logout: mockLogout,
@@ -29,7 +29,7 @@ jest.mock('../../context/AuthContext', () => ({
   }),
 }));
 
-import { ProfileScreen } from '../../screens/ProfileScreen';
+import { ProfileScreen } from '../../src/screens/ProfileScreen';
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 describe('ProfileScreen', () => {
