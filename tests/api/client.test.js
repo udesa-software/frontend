@@ -19,7 +19,7 @@ jest.mock('axios', () => {
 });
 
 // Import apiClient (which will be the 'm' function from the mock)
-import apiClient from '../../api/client';
+import apiClient from '../../src/api/client';
 
 // Extract handlers immediately after import
 const requestInterceptor = apiClient.interceptors.request.use.mock.calls[0][0];
