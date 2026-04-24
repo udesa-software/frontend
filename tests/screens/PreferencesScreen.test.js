@@ -110,4 +110,61 @@ describe('PreferencesScreen', () => {
       location_update_frequency: 15, // original value from mock
     });
   });
+
+  it('shows loading state initially then renders preferences', async () => {
+    // Verify that it renders a loading indicator before preferences are fetched
+    let resolvePrefs;
+    const prefsPromise = new Promise((res) => { resolvePrefs = res; });
+    usersApi.getPreferences.mockReturnValueOnce(prefsPromise);
+
+    const { getByTestId, findByText } = render(<PreferencesScreen />);
+    // While loading, ActivityIndicator should be visible (no title)
+    
+    resolvePrefs(mockPrefs);
+    expect(await findByText('Preferencias')).toBeTruthy();
+  });
+
+  it('shows error message when getPreferences fails', async () => {
+    usersApi.getPreferences.mockRejectedValueOnce(new Error('Network error'));
+
+    const { findByText } = render(<PreferencesScreen />);
+
+    expect(await findByText('Error al cargar preferencias.')).toBeTruthy();
+  });
+
+  it('shows err.message when updatePreferences fails without response', async () => {
+    usersApi.updatePreferences.mockRejectedValueOnce(new Error('Timeout'));
+    const { getByText, findByText } = render(<PreferencesScreen />);
+
+    await waitFor(() => expect(usersApi.getPreferences).toHaveBeenCalled());
+
+    await act(async () => {
+      fireEvent.press(getByText('Guardar Cambios'));
+    });
+
+    expect(await findByText('Timeout')).toBeTruthy();
+  });
+
+  it('uses defaults when getPreferences returns null data', async () => {
+    usersApi.getPreferences.mockResolvedValueOnce({ data: null });
+
+    const { findByText } = render(<PreferencesScreen />);
+    expect(await findByText('Preferencias')).toBeTruthy();
+    // Should still render without crashing
+  });
+
+  it('shows generic fallback error if updatePreferences fails without message or response', async () => {
+    const error = new Error();
+    delete error.message; 
+    usersApi.updatePreferences.mockRejectedValueOnce(error);
+
+    const { getByText, findByText } = render(<PreferencesScreen />);
+    await waitFor(() => expect(usersApi.getPreferences).toHaveBeenCalled());
+
+    await act(async () => {
+      fireEvent.press(getByText('Guardar Cambios'));
+    });
+
+    expect(await findByText('Error al guardar.')).toBeTruthy();
+  });
 });

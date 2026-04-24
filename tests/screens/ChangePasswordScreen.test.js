@@ -201,4 +201,42 @@ describe('ChangePasswordScreen', () => {
     fireEvent.press(getByText('Cancelar'));
     expect(mockGoBack).toHaveBeenCalled();
   });
+
+  it('shows default success message when response has no message', async () => {
+    // Tests the || branch of: response.data.message || "Tu contraseña ha sido cambiada..."
+    authApi.changePassword.mockResolvedValueOnce({ data: {} });
+
+    const { getByText, getByPlaceholderText } = render(<ChangePasswordScreen />);
+    
+    fireEvent.changeText(getByPlaceholderText('Ingresa tu clave actual'), 'OldPass123');
+    fireEvent.changeText(getByPlaceholderText('Mín. 8 caracteres, 1 mayús., 1 núm.'), 'NewPass123');
+    fireEvent.changeText(getByPlaceholderText('Repite tu nueva contraseña'), 'NewPass123');
+    
+    await act(async () => {
+      fireEvent.press(getByText('Actualizar Contraseña'));
+    });
+    
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Éxito',
+      'Tu contraseña ha sido cambiada con éxito. Por seguridad, se cerrará tu sesión.',
+      expect.any(Array)
+    );
+  });
+
+  it('shows err.message when changePassword fails without response', async () => {
+    // Tests: err.response?.data?.message || err.message
+    authApi.changePassword.mockRejectedValueOnce(new Error('Connection refused'));
+
+    const { getByText, getByPlaceholderText, findByText } = render(<ChangePasswordScreen />);
+    
+    fireEvent.changeText(getByPlaceholderText('Ingresa tu clave actual'), 'OldPass123');
+    fireEvent.changeText(getByPlaceholderText('Mín. 8 caracteres, 1 mayús., 1 núm.'), 'NewPass123');
+    fireEvent.changeText(getByPlaceholderText('Repite tu nueva contraseña'), 'NewPass123');
+    
+    await act(async () => {
+      fireEvent.press(getByText('Actualizar Contraseña'));
+    });
+    
+    expect(await findByText('Connection refused')).toBeTruthy();
+  });
 });
