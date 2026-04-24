@@ -48,4 +48,16 @@ describe('friendsApi', () => {
     await friendsApi.getFriendsList('proximity', 3);
     expect(apiClient.get).toHaveBeenCalledWith('/friends', { params: { sortBy: 'proximity', page: 3 } });
   });
+
+  it('uses default parameters in getPendingRequests and getFriendsList', async () => {
+    apiClient.get.mockResolvedValue({ data: [] });
+    
+    // Call without page
+    await friendsApi.getPendingRequests();
+    expect(apiClient.get).toHaveBeenLastCalledWith('/friends/pending', { params: { page: 1 } });
+
+    // Call without arguments
+    await friendsApi.getFriendsList();
+    expect(apiClient.get).toHaveBeenLastCalledWith('/friends', { params: { sortBy: 'alphabetical', page: 1 } });
+  });
 });
