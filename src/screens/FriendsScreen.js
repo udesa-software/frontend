@@ -10,7 +10,9 @@ export function FriendsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [actionsLoading, setActionsLoading] = useState({}); // { [userId]: boolean }
+  const [actionsLoading, setActionsLoading] = useState({});
+  // Guardamos localmente los IDs a los que ya enviamos solicitud en esta sesión
+  const [sentRequestIds, setSentRequestIds] = useState(new Set());
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -24,7 +26,6 @@ export function FriendsScreen() {
       setSearchResults(response.data);
     } catch (err) {
       console.error('Error al buscar usuarios:', err);
-      // Omitir alerta en error para no molestar mucho o mostrar un toast
     } finally {
       setIsSearching(false);
     }
@@ -33,8 +34,9 @@ export function FriendsScreen() {
   const handleSendRequest = async (user) => {
     setActionsLoading(prev => ({ ...prev, [user.id]: true }));
     try {
-      const resp = await friendsApi.sendRequest(user.id);
-      Alert.alert('Éxito', resp.data.message || 'Solicitud enviada');
+      await friendsApi.sendRequest(user.id);
+      // Actualizamos el estado local inmediatamente
+      setSentRequestIds(prev => new Set(prev).add(user.id));
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'Error al enviar solicitud';
       Alert.alert('Error', msg);
@@ -44,7 +46,8 @@ export function FriendsScreen() {
   };
 
   const renderUserItem = ({ item }) => {
-    const isAdding = actionsLoading[item.id] || false;
+    const isLoading = actionsLoading[item.id] || false;
+    const isSent = sentRequestIds.has(item.id);
 
     return (
       <View style={styles.userCard}>
@@ -54,15 +57,17 @@ export function FriendsScreen() {
            </View>
            <View style={styles.userDetails}>
              <Text style={styles.username}>{item.username}</Text>
-             {item.biography ? (
-               <Text style={styles.biography} numberOfLines={1}>{item.biography}</Text>
-             ) : null}
+             <Text style={styles.biography} numberOfLines={1}>
+               {item.biography || 'Sin biografía'}
+             </Text>
            </View>
         </View>
         <AppButton 
-          title="Agregar" 
+          title={isSent ? 'Pendiente' : 'Agregar'} 
           onPress={() => handleSendRequest(item)}
-          isLoading={isAdding}
+          isLoading={isLoading}
+          variant={isSent ? 'secondary' : 'primary'}
+          disabled={isSent}
           style={styles.addButton}
           textStyle={{ fontSize: fontSizes.sm }}
         />
@@ -199,6 +204,7 @@ const styles = StyleSheet.create({
   addButton: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
+    minWidth: 90,
   },
   emptyText: {
     color: colors.textMuted,
