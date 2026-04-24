@@ -19,4 +19,8 @@ export const usersApi = {
   // PATCH /api/users/profile - H6
   updateProfile: (data) =>
     apiClient.patch('/users/profile', data),
+
+  // GET /api/users/search
+  search: (username) =>
+    apiClient.get('/users/search', { params: { username } }),
 };

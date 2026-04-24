@@ -8,10 +8,11 @@ export function AppInput({
   secureTextEntry,
   showToggle,
   onToggleSecure,
+  wrapperStyle,
   ...props
 }) {
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, wrapperStyle]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={[styles.inputRow, error ? styles.inputError : null]}>
         <TextInput

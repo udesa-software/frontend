@@ -12,6 +12,7 @@ import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { PreferencesScreen } from '../screens/PreferencesScreen';
 import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
+import { FriendsScreen } from '../screens/FriendsScreen';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { colors, spacing } from '../theme';
 
@@ -49,6 +50,13 @@ function MainTabs() {
         component={HomeScreen} 
         options={{
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🏠</Text>
+        }}
+      />
+      <Tab.Screen 
+        name="Amigos" 
+        component={FriendsScreen} 
+        options={{
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>👥</Text>
         }}
       />
       <Tab.Screen 
