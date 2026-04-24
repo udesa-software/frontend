@@ -236,4 +236,15 @@ describe('ProfileScreen', () => {
     fireEvent.press(cancelBtns[0]);
     // We can't easily assert modal is gone in RN testing, but at minimum verifies no crash
   });
+
+  it('handles Modal onRequestClose', () => {
+    const { UNSAFE_getAllByType, getAllByText } = render(<ProfileScreen />);
+    fireEvent.press(getAllByText('Editar Perfil')[0]);
+    
+    const modals = UNSAFE_getAllByType(require('react-native').Modal);
+    // There are two modals in ProfileScreen (Edit and Delete)
+    // We call onRequestClose on the first one (Edit Modal)
+    modals[0].props.onRequestClose();
+    // Verifies it doesn't crash
+  });
 });

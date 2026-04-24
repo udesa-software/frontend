@@ -178,4 +178,37 @@ describe('RegisterScreen', () => {
     fireEvent.press(getByText('Iniciar Sesión'));
     expect(mockNavigate).toHaveBeenCalledWith('Login');
   });
+
+  it('toggles password visibility when toggle is pressed', () => {
+    const { getByPlaceholderText, getByText } = renderScreen();
+    const passwordInput = getByPlaceholderText('Al menos 8 caracteres');
+    
+    // Initial state (secureTextEntry should be true)
+    expect(passwordInput.props.secureTextEntry).toBe(true);
+    
+    // Press toggle (the eye icon/text in AppInput)
+    fireEvent.press(getByText('👁')); 
+    expect(passwordInput.props.secureTextEntry).toBe(false);
+    
+    fireEvent.press(getByText('🙈')); 
+    expect(passwordInput.props.secureTextEntry).toBe(true);
+  });
+
+  it('shows default error message when registration fails without a message', async () => {
+    const err = new Error();
+    delete err.message;
+    err.message = ''; 
+    usersApi.register.mockRejectedValueOnce(err);
+
+    const { getByPlaceholderText, getByTestId, findByText } = renderScreen();
+
+    fireEvent.changeText(getByPlaceholderText('Mínimo 4 caracteres'), 'johndoe');
+    fireEvent.press(getByTestId('terms-checkbox'));
+
+    await act(async () => {
+      fireEvent.press(getByTestId('register-button'));
+    });
+
+    expect(await findByText('Error al intentar crear la cuenta')).toBeTruthy();
+  });
 });

@@ -152,4 +152,19 @@ describe('PreferencesScreen', () => {
     expect(await findByText('Preferencias')).toBeTruthy();
     // Should still render without crashing
   });
+
+  it('shows generic fallback error if updatePreferences fails without message or response', async () => {
+    const error = new Error();
+    delete error.message; 
+    usersApi.updatePreferences.mockRejectedValueOnce(error);
+
+    const { getByText, findByText } = render(<PreferencesScreen />);
+    await waitFor(() => expect(usersApi.getPreferences).toHaveBeenCalled());
+
+    await act(async () => {
+      fireEvent.press(getByText('Guardar Cambios'));
+    });
+
+    expect(await findByText('Error al guardar.')).toBeTruthy();
+  });
 });
