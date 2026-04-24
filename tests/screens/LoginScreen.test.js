@@ -186,4 +186,41 @@ describe('LoginScreen', () => {
 
     expect(await findByText('El email no es válido')).toBeTruthy();
   });
+
+  it('shows general error when resend fails with non-404 status', async () => {
+    const err = new Error('Server error');
+    err.status = 500;
+    authApi.resendVerification.mockRejectedValueOnce(err);
+
+    const { getByPlaceholderText, getByText, findByText } = renderScreen({ showResendPrompt: true });
+
+    fireEvent.changeText(
+      getByPlaceholderText('ejemplo@correo.com o mi_usuario'),
+      'user@test.com'
+    );
+
+    await act(async () => {
+      fireEvent.press(getByText('¿No recibiste el código? Reenviar'));
+    });
+
+    expect(await findByText('Server error')).toBeTruthy();
+  });
+
+  it('shows default error message on login when error has no message', async () => {
+    const error = new Error();
+    delete error.message; // Remove message to test fallback
+    error.message = ''; // Empty string tests || fallback
+    mockLogin.mockRejectedValueOnce(error);
+
+    const { getByPlaceholderText, getByText, findByText } = renderScreen();
+
+    fireEvent.changeText(getByPlaceholderText('ejemplo@correo.com o mi_usuario'), 'user@test.com');
+    fireEvent.changeText(getByPlaceholderText('Tu contraseña secreta'), 'pass');
+
+    await act(async () => {
+      fireEvent.press(getByText('Iniciar Sesión'));
+    });
+
+    expect(await findByText('Error al iniciar sesión')).toBeTruthy();
+  });
 });

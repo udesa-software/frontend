@@ -29,10 +29,12 @@ const renderScreen = (routeParams = defaultRoute.params) =>
 describe('ResetPasswordScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    authApi.verifyResetToken.mockReset();
+    authApi.resetPassword.mockReset();
   });
 
   it('shows loading state while verifying token', async () => {
-    authApi.verifyResetToken.mockReturnValue(new Promise(() => {})); // Never resolves
+    authApi.verifyResetToken.mockReturnValueOnce(new Promise(() => {})); // Never resolves
     const { getByText } = renderScreen();
     expect(getByText('Verificando enlace...')).toBeTruthy();
   });
@@ -127,5 +129,67 @@ describe('ResetPasswordScreen', () => {
     });
     
     expect(await findByText('Contraseña muy débil')).toBeTruthy();
+  });
+
+  it('shows "Enlace no válido" when route has no token param', async () => {
+    authApi.verifyResetToken.mockResolvedValueOnce({});
+    const { findByText } = renderScreen({});  // no token key
+
+    expect(await findByText('Enlace no válido')).toBeTruthy();
+    expect(await findByText('Token no encontrado en el link. Por favor, solicita uno nuevo.')).toBeTruthy();
+  });
+
+  it('navigates to ForgotPassword when "Solicitar nuevo enlace" is pressed on error view', async () => {
+    authApi.verifyResetToken.mockRejectedValueOnce(new Error('Enlace expirado'));
+    const { findByText } = renderScreen();
+
+    const btn = await findByText('Solicitar nuevo enlace');
+    fireEvent.press(btn);
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('ForgotPassword');
+    });
+  });
+
+  it('shows field error when password is too short (< 8 chars)', async () => {
+    authApi.verifyResetToken.mockResolvedValueOnce({});
+    const { findByTestId, getByPlaceholderText, getByText, findByText } = renderScreen();
+
+    await findByTestId('reset-password-title');
+
+    fireEvent.changeText(getByPlaceholderText('Al menos 8 caracteres'), 'short');
+    fireEvent.changeText(getByPlaceholderText('Repite tu nueva contraseña'), 'short');
+
+    await act(async () => {
+      fireEvent.press(getByText('Cambiar Contraseña'));
+    });
+
+    expect(await findByText('La contraseña debe tener al menos 8 caracteres.')).toBeTruthy();
+    expect(authApi.resetPassword).not.toHaveBeenCalled();
+  });
+
+  it('shows general error when resetPassword fails without details', async () => {
+    authApi.verifyResetToken.mockResolvedValueOnce({});
+    authApi.resetPassword.mockRejectedValueOnce(new Error('Error del servidor'));
+
+    const { findByTestId, getByPlaceholderText, getByText, findByText } = renderScreen();
+    
+    await findByTestId('reset-password-title');
+    fireEvent.changeText(getByPlaceholderText('Al menos 8 caracteres'), 'validpass123');
+    fireEvent.changeText(getByPlaceholderText('Repite tu nueva contraseña'), 'validpass123');
+
+    await act(async () => {
+      fireEvent.press(getByText('Cambiar Contraseña'));
+    });
+
+    expect(await findByText('Error del servidor')).toBeTruthy();
+  });
+
+  it('navigates to Login when "Cancelar" button is pressed', async () => {
+    authApi.verifyResetToken.mockResolvedValueOnce({});
+    const { findByTestId, getByText } = renderScreen();
+
+    await findByTestId('reset-password-title');
+    fireEvent.press(getByText('Cancelar'));
+    expect(mockNavigate).toHaveBeenCalledWith('Login');
   });
 });
