@@ -24,9 +24,9 @@ jest.mock('expo-secure-store', () => ({
 }));
 
 
-import apiClient from '../../api/client';
-import { authApi } from '../../api/auth';
-import { usersApi } from '../../api/users';
+import apiClient from '../../src/api/client';
+import { authApi } from '../../src/api/auth';
+import { usersApi } from '../../src/api/users';
 import * as SecureStore from 'expo-secure-store';
 
 beforeEach(() => {

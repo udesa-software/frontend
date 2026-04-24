@@ -1,18 +1,18 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import { ChangePasswordScreen } from '../../screens/ChangePasswordScreen';
-import { authApi } from '../../api/auth';
-import { useAuth } from '../../context/AuthContext';
+import { ChangePasswordScreen } from '../../src/screens/ChangePasswordScreen';
+import { authApi } from '../../src/api/auth';
+import { useAuth } from '../../src/context/AuthContext';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
-jest.mock('../../api/auth', () => ({
+jest.mock('../../src/api/auth', () => ({
   authApi: {
     changePassword: jest.fn(),
   },
 }));
 
-jest.mock('../../context/AuthContext', () => ({
+jest.mock('../../src/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 

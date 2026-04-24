@@ -5,14 +5,14 @@ import { Alert } from 'react-native';
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const mockNavigate = jest.fn();
 
-jest.mock('../../api/users', () => ({
+jest.mock('../../src/api/users', () => ({
   usersApi: {
     register: jest.fn(),
   },
 }));
 
-import { usersApi } from '../../api/users';
-import { RegisterScreen } from '../../screens/RegisterScreen';
+import { usersApi } from '../../src/api/users';
+import { RegisterScreen } from '../../src/screens/RegisterScreen';
 
 const defaultNavigation = { navigate: mockNavigate };
 const renderScreen = () => render(<RegisterScreen navigation={defaultNavigation} />);

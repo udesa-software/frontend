@@ -3,21 +3,21 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
-jest.mock('../../api/auth', () => ({
+jest.mock('../../src/api/auth', () => ({
   authApi: {
     verifyResetToken: jest.fn(),
     resetPassword: jest.fn(),
   },
 }));
 
-import { authApi } from '../../api/auth';
+import { authApi } from '../../src/api/auth';
 
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
 }));
 
-import { ResetPasswordScreen } from '../../screens/ResetPasswordScreen';
+import { ResetPasswordScreen } from '../../src/screens/ResetPasswordScreen';
 
 const defaultRoute = { params: { token: 'valid-token' } };
 const defaultNavigation = { navigate: mockNavigate };

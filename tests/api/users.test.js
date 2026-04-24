@@ -1,7 +1,7 @@
-import { usersApi } from '../../api/users';
-import apiClient from '../../api/client';
+import { usersApi } from '../../src/api/users';
+import apiClient from '../../src/api/client';
 
-jest.mock('../../api/client', () => ({
+jest.mock('../../src/api/client', () => ({
   post: jest.fn(),
   get: jest.fn(),
   patch: jest.fn(),

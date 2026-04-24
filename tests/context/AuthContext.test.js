@@ -4,23 +4,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
-jest.mock('../../api/auth', () => ({
+jest.mock('../../src/api/auth', () => ({
   authApi: {
     login: jest.fn(),
     logout: jest.fn(),
   },
 }));
 
-jest.mock('../../api/users', () => ({
+jest.mock('../../src/api/users', () => ({
   usersApi: {
     deleteAccount: jest.fn(),
     updateProfile: jest.fn(),
   },
 }));
 
-import { authApi } from '../../api/auth';
-import { usersApi } from '../../api/users';
-import { AuthProvider, useAuth } from '../../context/AuthContext';
+import { authApi } from '../../src/api/auth';
+import { usersApi } from '../../src/api/users';
+import { AuthProvider, useAuth } from '../../src/context/AuthContext';
 
 const wrapper = ({ children }) => <AuthProvider>{children}</AuthProvider>;
 

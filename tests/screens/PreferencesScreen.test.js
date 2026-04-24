@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { PreferencesScreen } from '../../screens/PreferencesScreen';
-import { usersApi } from '../../api/users';
+import { PreferencesScreen } from '../../src/screens/PreferencesScreen';
+import { usersApi } from '../../src/api/users';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const mockGoBack = jest.fn();
@@ -12,7 +12,7 @@ jest.mock('@react-navigation/native', () => ({
   }),
 }));
 
-jest.mock('../../api/users', () => ({
+jest.mock('../../src/api/users', () => ({
   usersApi: {
     getPreferences: jest.fn(),
     updatePreferences: jest.fn(),

@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const mockLogin = jest.fn();
-jest.mock('../../context/AuthContext', () => ({
+jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => ({ login: mockLogin }),
 }));
 
@@ -13,14 +13,14 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
 }));
 
-jest.mock('../../api/auth', () => ({
+jest.mock('../../src/api/auth', () => ({
   authApi: {
     resendVerification: jest.fn(),
   },
 }));
 
-import { authApi } from '../../api/auth';
-import { LoginScreen } from '../../screens/LoginScreen';
+import { authApi } from '../../src/api/auth';
+import { LoginScreen } from '../../src/screens/LoginScreen';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const defaultNavigation = { navigate: mockNavigate };

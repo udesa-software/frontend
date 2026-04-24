@@ -1,11 +1,11 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { FriendsScreen } from '../../screens/FriendsScreen';
-import { usersApi } from '../../api/users';
-import { friendsApi } from '../../api/friends';
+import { FriendsScreen } from '../../src/screens/FriendsScreen';
+import { usersApi } from '../../src/api/users';
+import { friendsApi } from '../../src/api/friends';
 
-jest.mock('../../api/users');
-jest.mock('../../api/friends');
+jest.mock('../../src/api/users');
+jest.mock('../../src/api/friends');
 
 describe('FriendsScreen', () => {
   beforeEach(() => {

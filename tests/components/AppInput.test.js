@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { AppInput } from '../../components/AppInput';
+import { AppInput } from '../../src/components/AppInput';
 
 describe('AppInput', () => {
   it('renders with a label', () => {

@@ -4,14 +4,14 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const mockNavigate = jest.fn();
 
-jest.mock('../../api/auth', () => ({
+jest.mock('../../src/api/auth', () => ({
   authApi: {
     forgotPassword: jest.fn(),
   },
 }));
 
-import { authApi } from '../../api/auth';
-import { ForgotPasswordScreen } from '../../screens/ForgotPasswordScreen';
+import { authApi } from '../../src/api/auth';
+import { ForgotPasswordScreen } from '../../src/screens/ForgotPasswordScreen';
 
 const defaultNavigation = { navigate: mockNavigate };
 const renderScreen = () =>

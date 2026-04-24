@@ -1,7 +1,7 @@
-import { friendsApi } from '../../api/friends';
-import apiClient from '../../api/client';
+import { friendsApi } from '../../src/api/friends';
+import apiClient from '../../src/api/client';
 
-jest.mock('../../api/client', () => ({
+jest.mock('../../src/api/client', () => ({
   post: jest.fn(),
   delete: jest.fn(),
   get: jest.fn(),

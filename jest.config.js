@@ -11,7 +11,7 @@ module.exports = {
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.{js,jsx}',
-    '!src/**/__tests__/**',
+    '!tests/**',
     '!src/theme/**',
     '!src/navigation/**',
     '!src/types/**',
