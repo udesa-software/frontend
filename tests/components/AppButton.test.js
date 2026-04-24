@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { AppButton } from '../../components/AppButton';
+import { AppButton } from '../../src/components/AppButton';
 
 describe('AppButton', () => {
   it('renders the title correctly', () => {
