@@ -123,4 +123,30 @@ describe('FriendsScreen', () => {
       expect(spy).toHaveBeenCalledWith('Error', 'Error');
     });
   });
+
+  it('switches between Explorar and Solicitudes tabs', async () => {
+    // Mock getPendingRequests for the PendingRequestsList component
+    friendsApi.getPendingRequests = jest.fn().mockResolvedValue({ 
+      data: { data: [], pagination: { page: 1, totalPages: 0 } } 
+    });
+
+    const { getByText, queryByPlaceholderText } = render(<FriendsScreen />);
+    
+    // Initially on 'search' tab
+    expect(queryByPlaceholderText('Buscar por usuario')).toBeTruthy();
+
+    // Switch to 'pending' tab
+    const pendingTab = getByText('Solicitudes');
+    fireEvent.press(pendingTab);
+
+    // The search input should disappear because it's rendering PendingRequestsList
+    expect(queryByPlaceholderText('Buscar por usuario')).toBeNull();
+
+    // Switch back to 'search' tab
+    const searchTab = getByText('Explorar');
+    fireEvent.press(searchTab);
+
+    // Search input should be back
+    expect(queryByPlaceholderText('Buscar por usuario')).toBeTruthy();
+  });
 });
