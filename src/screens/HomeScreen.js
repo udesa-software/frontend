@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { colors, spacing, fontSizes, radii } from '../theme';
 
@@ -8,6 +8,11 @@ export function HomeScreen() {
   
   return (
     <View style={styles.container}>
+      <Image 
+        source={require('../../assets/logo-udesamigos.png')} 
+        style={styles.logo} 
+        resizeMode="contain"
+      />
       <Text style={styles.title}>¡Hola, {user.username}!</Text>
       <Text style={styles.subtitle}>{user.email}</Text>
       
@@ -23,7 +28,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     justifyContent: 'center',
+    alignItems: 'center',
     padding: spacing.xl,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: spacing.lg,
   },
   title: {
     fontSize: fontSizes.xxxl,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Image } from 'react-native';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
 import { colors, spacing, fontSizes } from '../theme';
@@ -74,6 +74,11 @@ export function LoginScreen({ navigation, route }) {
     >
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
+          <Image 
+            source={require('../../assets/logo-udesamigos.png')} 
+            style={styles.logo} 
+            resizeMode="contain"
+          />
           <Text style={styles.title}>Bienvenido</Text>
           <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
         </View>
@@ -148,6 +153,12 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: spacing.xxl,
+    alignItems: 'center',
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: spacing.md,
   },
   title: {
     fontSize: fontSizes.xxxl,

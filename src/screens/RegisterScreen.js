@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity, Image } from 'react-native';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
 import { colors, spacing, fontSizes } from '../theme';
@@ -61,6 +61,11 @@ export function RegisterScreen({ navigation }) {
     >
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
+          <Image 
+            source={require('../../assets/logo-udesamigos.png')} 
+            style={styles.logo} 
+            resizeMode="contain"
+          />
           <Text style={styles.title} testID="register-title">Crear Cuenta</Text>
           <Text style={styles.subtitle}>Únete para disfrutar de la experiencia</Text>
         </View>
@@ -147,6 +152,12 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: spacing.xxl,
+    alignItems: 'center',
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    marginBottom: spacing.md,
   },
   title: {
     fontSize: fontSizes.xxxl,
