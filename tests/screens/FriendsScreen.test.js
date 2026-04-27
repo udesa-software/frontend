@@ -24,13 +24,21 @@ describe('FriendsScreen', () => {
   });
 
   it('renders correctly', () => {
-    const { getByText, getByPlaceholderText } = render(<FriendsScreen />);
+    // Mock getFriendsList for default tab
+    friendsApi.getFriendsList = jest.fn().mockResolvedValue({ 
+      data: { data: [], pagination: { page: 1, totalPages: 0 } } 
+    });
+    const { getByText } = render(<FriendsScreen />);
     expect(getByText('Amigos')).toBeTruthy();
-    expect(getByPlaceholderText('Buscar por usuario')).toBeTruthy();
+    expect(getByText('Mis Amigos')).toBeTruthy();
+    expect(getByText('Explorar')).toBeTruthy();
   });
 
   it('does not search if query is empty', async () => {
-    const { getByText } = render(<FriendsScreen />);
+    const { getByText, getByPlaceholderText } = render(<FriendsScreen />);
+    // Switch to search tab first
+    fireEvent.press(getByText('Explorar'));
+    
     fireEvent.press(getByText('Buscar'));
 
     await waitFor(() => {
@@ -44,6 +52,9 @@ describe('FriendsScreen', () => {
     });
 
     const { getByPlaceholderText, getByText, findByText } = render(<FriendsScreen />);
+    
+    fireEvent.press(getByText('Explorar'));
+
     const input = getByPlaceholderText('Buscar por usuario');
     fireEvent.changeText(input, 'juan');
     fireEvent.press(getByText('Buscar'));
@@ -59,6 +70,9 @@ describe('FriendsScreen', () => {
     });
 
     const { getByPlaceholderText, getByText, findByText } = render(<FriendsScreen />);
+    
+    fireEvent.press(getByText('Explorar'));
+
     const input = getByPlaceholderText('Buscar por usuario');
     fireEvent.changeText(input, 'pedro');
     fireEvent.press(getByText('Buscar'));
@@ -71,6 +85,8 @@ describe('FriendsScreen', () => {
     usersApi.search.mockRejectedValueOnce(new Error('Network error'));
     const { getByPlaceholderText, getByText } = render(<FriendsScreen />);
     
+    fireEvent.press(getByText('Explorar'));
+
     fireEvent.changeText(getByPlaceholderText('Buscar por usuario'), 'error');
     fireEvent.press(getByText('Buscar'));
 
@@ -86,6 +102,9 @@ describe('FriendsScreen', () => {
     });
 
     const { getByPlaceholderText, getByText, findByText, queryByText } = render(<FriendsScreen />);
+    
+    fireEvent.press(getByText('Explorar'));
+
     fireEvent.changeText(getByPlaceholderText('Buscar por usuario'), 'juan');
     fireEvent.press(getByText('Buscar'));
 
@@ -109,6 +128,9 @@ describe('FriendsScreen', () => {
     friendsApi.sendRequest.mockRejectedValueOnce({ response: { data: { error: 'Error' } } });
 
     const { getByPlaceholderText, getByText, findByText } = render(<FriendsScreen />);
+    
+    fireEvent.press(getByText('Explorar'));
+
     fireEvent.changeText(getByPlaceholderText('Buscar por usuario'), 'juan');
     fireEvent.press(getByText('Buscar'));
 
@@ -124,16 +146,25 @@ describe('FriendsScreen', () => {
     });
   });
 
-  it('switches between Explorar and Solicitudes tabs', async () => {
+  it('switches between tabs successfully', async () => {
     // Mock getPendingRequests for the PendingRequestsList component
     friendsApi.getPendingRequests = jest.fn().mockResolvedValue({ 
       data: { data: [], pagination: { page: 1, totalPages: 0 } } 
     });
 
-    const { getByText, queryByPlaceholderText } = render(<FriendsScreen />);
+    const { getByText, queryByPlaceholderText, queryByText } = render(<FriendsScreen />);
     
-    // Initially on 'search' tab
+    // Initially on 'friends' tab
+    expect(queryByText('Alfabético')).toBeTruthy(); // from FriendsList
+    expect(queryByPlaceholderText('Buscar por usuario')).toBeNull();
+
+    // Switch to 'search' tab
+    const searchTab = getByText('Explorar');
+    fireEvent.press(searchTab);
+
+    // Search input should be present
     expect(queryByPlaceholderText('Buscar por usuario')).toBeTruthy();
+    expect(queryByText('Alfabético')).toBeNull();
 
     // Switch to 'pending' tab
     const pendingTab = getByText('Solicitudes');
@@ -141,12 +172,5 @@ describe('FriendsScreen', () => {
 
     // The search input should disappear because it's rendering PendingRequestsList
     expect(queryByPlaceholderText('Buscar por usuario')).toBeNull();
-
-    // Switch back to 'search' tab
-    const searchTab = getByText('Explorar');
-    fireEvent.press(searchTab);
-
-    // Search input should be back
-    expect(queryByPlaceholderText('Buscar por usuario')).toBeTruthy();
   });
 });

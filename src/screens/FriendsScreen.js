@@ -3,12 +3,13 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOp
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
 import { PendingRequestsList } from '../components/PendingRequestsList';
+import { FriendsList } from '../components/FriendsList';
 import { colors, spacing, fontSizes, radii } from '../theme';
 import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 
 export function FriendsScreen() {
-  const [activeTab, setActiveTab] = useState('search'); // 'search' | 'pending'
+  const [activeTab, setActiveTab] = useState('friends'); // 'friends' | 'search' | 'pending'
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -83,6 +84,12 @@ export function FriendsScreen() {
       
       <View style={styles.tabContainer}>
         <TouchableOpacity 
+          style={[styles.tab, activeTab === 'friends' && styles.activeTab]}
+          onPress={() => setActiveTab('friends')}
+        >
+          <Text style={[styles.tabText, activeTab === 'friends' && styles.activeTabText]}>Mis Amigos</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
           style={[styles.tab, activeTab === 'search' && styles.activeTab]}
           onPress={() => setActiveTab('search')}
         >
@@ -96,7 +103,7 @@ export function FriendsScreen() {
         </TouchableOpacity>
       </View>
 
-      {activeTab === 'search' ? (
+      {activeTab === 'search' && (
         <>
           <View style={styles.searchSection}>
             <AppInput
@@ -135,8 +142,14 @@ export function FriendsScreen() {
             />
           )}
         </>
-      ) : (
+      )}
+
+      {activeTab === 'pending' && (
         <PendingRequestsList />
+      )}
+
+      {activeTab === 'friends' && (
+        <FriendsList onGoToSearch={() => setActiveTab('search')} />
       )}
     </View>
   );
