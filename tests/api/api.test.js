@@ -5,6 +5,7 @@ jest.mock('axios', () => ({
   create: jest.fn(() => ({
     post: jest.fn(),
     get: jest.fn(),
+    patch: jest.fn(),
     interceptors: {
       request: { use: jest.fn() },
       response: { use: jest.fn() },
@@ -172,6 +173,36 @@ describe('usersApi', () => {
       usersApi.deleteAccount('mypassword');
       expect(apiClient.post).toHaveBeenCalledWith('/users/delete', {
         password: 'mypassword',
+      });
+    });
+  });
+
+  describe('getPreferences', () => {
+    it('calls GET /users/preferences', () => {
+      apiClient.get.mockResolvedValueOnce({ data: { search_radius_km: 10 } });
+      usersApi.getPreferences();
+      expect(apiClient.get).toHaveBeenCalledWith('/users/preferences');
+    });
+  });
+
+  describe('updatePreferences', () => {
+    it('calls PATCH /users/preferences with data', () => {
+      apiClient.patch.mockResolvedValueOnce({ data: {} });
+      usersApi.updatePreferences({ search_radius_km: 20, location_update_frequency: 15 });
+      expect(apiClient.patch).toHaveBeenCalledWith('/users/preferences', {
+        search_radius_km: 20,
+        location_update_frequency: 15,
+      });
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('calls PATCH /users/profile with data', () => {
+      apiClient.patch.mockResolvedValueOnce({ data: {} });
+      usersApi.updateProfile({ username: 'newuser', biography: 'Hello' });
+      expect(apiClient.patch).toHaveBeenCalledWith('/users/profile', {
+        username: 'newuser',
+        biography: 'Hello',
       });
     });
   });
