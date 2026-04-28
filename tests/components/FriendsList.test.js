@@ -40,8 +40,8 @@ describe('FriendsList', () => {
 
   it('renders list of friends', async () => {
     const mockFriends = [
-      { friend_id: 1, friend_username: 'testuser1', biography: 'Bio 1' },
-      { friend_id: 2, friend_username: 'testuser2', biography: '' },
+      { friend_id: 1, friend_username: 'testuser1' },
+      { friend_id: 2, friend_username: 'testuser2' },
     ];
 
     friendsApi.getFriendsList.mockResolvedValueOnce({ 
@@ -52,9 +52,7 @@ describe('FriendsList', () => {
 
     await waitFor(() => {
       expect(getByText('testuser1')).toBeTruthy();
-      expect(getByText('Bio 1')).toBeTruthy();
       expect(getByText('testuser2')).toBeTruthy();
-      expect(getByText('Sin biografía')).toBeTruthy();
     });
 
     expect(queryByText('¡Aún no tenés amigos!')).toBeNull();

@@ -82,9 +82,6 @@ export function FriendsList({ onGoToSearch }) {
         </View>
         <View style={styles.details}>
           <Text style={styles.username}>{item.friend_username}</Text>
-          <Text style={styles.biography} numberOfLines={1}>
-            {item.biography || 'Sin biografía'}
-          </Text>
         </View>
       </View>
     </View>
@@ -204,11 +201,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: fontSizes.md,
   },
-  biography: {
-    color: colors.textMuted,
-    fontSize: fontSizes.sm,
-    marginTop: 2,
-  },
+
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
