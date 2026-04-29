@@ -29,6 +29,8 @@ export function FriendsScreen() {
       setSearchResults(response.data);
     } catch (err) {
       console.error('Error al buscar usuarios:', err);
+      const msg = err.response?.data?.error || err.message || 'Error al buscar usuarios';
+      Alert.alert('Error', msg);
     } finally {
       setIsSearching(false);
     }

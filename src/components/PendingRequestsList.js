@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { AppButton } from './AppButton';
 import { colors, spacing, fontSizes, radii } from '../theme';
@@ -11,10 +11,12 @@ export function PendingRequestsList() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [actionsLoading, setActionsLoading] = useState({});
+  const loadingRef = useRef(false);
 
   const fetchRequests = useCallback(async (pageNum, isRefresh = false) => {
-    if (loading || (!hasMore && !isRefresh)) return;
+    if (loadingRef.current || (!hasMore && !isRefresh)) return;
 
+    loadingRef.current = true;
     setLoading(true);
     try {
       const response = await friendsApi.getPendingRequests(pageNum);
@@ -34,10 +36,11 @@ export function PendingRequestsList() {
       console.error('Error al obtener solicitudes pendientes:', err);
       Alert.alert('Error', 'No se pudieron cargar las solicitudes pendientes.');
     } finally {
+      loadingRef.current = false;
       setLoading(false);
       setRefreshing(false);
     }
-  }, [loading, hasMore]);
+  }, [hasMore]);
 
   useEffect(() => {
     fetchRequests(1, true);
@@ -50,7 +53,7 @@ export function PendingRequestsList() {
   };
 
   const handleLoadMore = () => {
-    if (hasMore && !loading) {
+    if (hasMore && !loadingRef.current) {
       fetchRequests(page + 1);
     }
   };
