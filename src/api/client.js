@@ -81,7 +81,12 @@ apiClient.interceptors.response.use(
         
         const { accessToken, refreshToken: newRefreshToken } = data;
 
-        await AsyncStorage.setItem('authToken', accessToken);
+        if (accessToken) {
+          await AsyncStorage.setItem('authToken', accessToken);
+        } else {
+          console.warn('[apiClient] Refresh falló: no se recibió accessToken');
+          throw new Error('No se pudo refrescar el token');
+        }
         if (newRefreshToken) {
           await SecureStore.setItemAsync('refreshToken', newRefreshToken);
         }
