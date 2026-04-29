@@ -6,6 +6,7 @@ import { friendsApi } from '../../src/api/friends';
 jest.mock('../../src/api/friends', () => ({
   friendsApi: {
     getFriendsList: jest.fn(),
+    removeFriend: jest.fn(),
   }
 }));
 
@@ -158,5 +159,80 @@ describe('FriendsList', () => {
     });
     render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
     await waitFor(() => expect(friendsApi.getFriendsList).toHaveBeenCalled());
+  });
+  
+  it('handles removing a friend', async () => {
+    const mockFriends = [
+      { friend_id: 1, friend_username: 'testuser1' },
+    ];
+    friendsApi.getFriendsList.mockResolvedValueOnce({ 
+      data: { data: mockFriends, pagination: { page: 1, totalPages: 1 } } 
+    });
+    friendsApi.removeFriend.mockResolvedValueOnce({ data: { message: 'Amistad eliminada' } });
+    
+    const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
+    
+    const { getByText, queryByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    
+    await waitFor(() => expect(getByText('testuser1')).toBeTruthy());
+    
+    const removeButton = getByText('Eliminar');
+    fireEvent.press(removeButton);
+    
+    // Check if Alert was called
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Eliminar Amigo',
+      expect.stringContaining('testuser1'),
+      expect.any(Array)
+    );
+    
+    // Extract the "Eliminar" button from the Alert call and press it
+    const alertButtons = alertSpy.mock.calls[0][2];
+    const deleteOption = alertButtons.find(b => b.text === 'Eliminar');
+    
+    await act(async () => {
+      await deleteOption.onPress();
+    });
+    
+    expect(friendsApi.removeFriend).toHaveBeenCalledWith(1);
+    
+    // Check if friend is removed from list
+    await waitFor(() => {
+      expect(queryByText('testuser1')).toBeNull();
+    });
+  });
+
+  it('handles error when removing a friend', async () => {
+    const mockFriends = [{ friend_id: 1, friend_username: 'testuser1' }];
+    friendsApi.getFriendsList.mockResolvedValueOnce({ 
+      data: { data: mockFriends, pagination: { page: 1, totalPages: 1 } } 
+    });
+    friendsApi.removeFriend.mockRejectedValueOnce(new Error('API Error'));
+    
+    const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
+    
+    const { getByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    
+    await waitFor(() => expect(getByText('testuser1')).toBeTruthy());
+    
+    fireEvent.press(getByText('Eliminar'));
+    
+    // Alert confirmación
+    const alertButtons = alertSpy.mock.calls[0][2];
+    const deleteOption = alertButtons.find(b => b.text === 'Eliminar');
+    
+    await act(async () => {
+      await deleteOption.onPress();
+    });
+    
+    expect(friendsApi.removeFriend).toHaveBeenCalledWith(1);
+    
+    // Alert error (segundo llamado a Alert.alert)
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Error', 'No se pudo eliminar al amigo. Reintentá más tarde.');
+    });
+    
+    // El amigo debe seguir en la lista
+    expect(getByText('testuser1')).toBeTruthy();
   });
 });
