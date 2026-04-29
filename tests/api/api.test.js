@@ -86,11 +86,11 @@ describe('authApi', () => {
   });
 
   describe('resendVerification', () => {
-    it('calls POST /auth/resend-verification with email', () => {
+    it('calls POST /auth/resend-verification with identifier', () => {
       apiClient.post.mockResolvedValueOnce({ data: {} });
       authApi.resendVerification('user@test.com');
       expect(apiClient.post).toHaveBeenCalledWith('/auth/resend-verification', {
-        email: 'user@test.com',
+        identifier: 'user@test.com',
       });
     });
   });
