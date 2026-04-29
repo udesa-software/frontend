@@ -77,6 +77,12 @@ describe('FriendsList', () => {
     await waitFor(() => {
       expect(friendsApi.getFriendsList).toHaveBeenCalledWith('proximity', 1);
     });
+
+    friendsApi.getFriendsList.mockClear();
+    fireEvent.press(getByText('Alfabético'));
+    await waitFor(() => {
+      expect(friendsApi.getFriendsList).toHaveBeenCalledWith('alphabetical', 1);
+    });
   });
 
   it('handles pull to refresh', async () => {
@@ -117,6 +123,18 @@ describe('FriendsList', () => {
 
     await waitFor(() => {
       expect(friendsApi.getFriendsList).toHaveBeenCalledWith('alphabetical', 2);
+    });
+  });
+
+  it('handles fetchFriends error', async () => {
+    friendsApi.getFriendsList.mockRejectedValueOnce(new Error('Fetch failed'));
+    const spy = jest.spyOn(require('react-native').Alert, 'alert');
+    
+    render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    
+    await waitFor(() => {
+      expect(friendsApi.getFriendsList).toHaveBeenCalled();
+      expect(spy).toHaveBeenCalledWith('Error', 'No se pudieron cargar tus amigos.');
     });
   });
 });

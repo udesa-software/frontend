@@ -172,5 +172,42 @@ describe('FriendsScreen', () => {
 
     // The search input should disappear because it's rendering PendingRequestsList
     expect(queryByPlaceholderText('Buscar por usuario')).toBeNull();
+
+    // Switch back to 'friends' tab (Line 90 coverage)
+    fireEvent.press(getByText('Mis Amigos'));
+    expect(queryByText('Alfabético')).toBeTruthy();
+  });
+
+  it('navigates to search from FriendsList empty state', async () => {
+    // Mock getFriendsList to return empty
+    friendsApi.getFriendsList = jest.fn().mockResolvedValue({ 
+      data: { data: [], pagination: { page: 1, totalPages: 0 } } 
+    });
+
+    const { getByText, queryByPlaceholderText } = render(<FriendsScreen />);
+    
+    await waitFor(() => {
+      expect(getByText('¡Aún no tenés amigos!')).toBeTruthy();
+    });
+
+    // Press 'Buscar Amigos' button inside FriendsList
+    fireEvent.press(getByText('Buscar Amigos'));
+
+    // Should switch to search tab (Line 152 coverage)
+    expect(queryByPlaceholderText('Buscar por usuario')).toBeTruthy();
+  });
+
+  it('verifies Alert is called on search error', async () => {
+    usersApi.search.mockRejectedValueOnce({ response: { data: { error: 'Search failed' } } });
+    const spy = jest.spyOn(require('react-native').Alert, 'alert');
+    
+    const { getByPlaceholderText, getByText } = render(<FriendsScreen />);
+    fireEvent.press(getByText('Explorar'));
+    fireEvent.changeText(getByPlaceholderText('Buscar por usuario'), 'test');
+    fireEvent.press(getByText('Buscar'));
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith('Error', 'Search failed');
+    });
   });
 });
