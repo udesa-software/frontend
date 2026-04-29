@@ -37,7 +37,6 @@ export function AuthProvider({ children }) {
 
   const login = async (identifier, password) => {
     const response = await authApi.login(identifier, password);
-    console.log('[AuthContext] Login response:', response.data);
     const { accessToken, refreshToken, user, ...rest } = response.data;
 
     // accessToken en AsyncStorage (leído por el interceptor HTTP)

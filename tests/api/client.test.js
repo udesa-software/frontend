@@ -309,5 +309,24 @@ describe('apiClient Interceptors', () => {
       await expect(promise1).rejects.toThrow();
       await expect(promise2).rejects.toThrow();
     });
+
+    it('should throw if refresh response is missing accessToken', async () => {
+      const originalRequest = {
+        config: { _retry: false, headers: {} },
+        response: {
+          status: 401,
+          data: { error: 'Token inválido o expirado' }
+        }
+      };
+
+      SecureStore.getItemAsync.mockResolvedValueOnce('refresh-token');
+      // @ts-ignore
+      axios.post.mockResolvedValueOnce({
+        data: {} // missing accessToken
+      });
+
+      await expect(responseErrorInterceptor(originalRequest)).rejects.toThrow('No se pudo refrescar el token');
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('authToken');
+    });
   });
 });
