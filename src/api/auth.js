@@ -19,8 +19,8 @@ export const authApi = {
   },
 
   // POST /api/auth/resend-verification
-  resendVerification: (email) =>
-    apiClient.post('/auth/resend-verification', { email }),
+  resendVerification: (identifier) =>
+    apiClient.post('/auth/resend-verification', { identifier }),
 
   // GET /api/auth/verify-email?token=<uuid>
   verifyEmail: (token) =>
