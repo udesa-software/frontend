@@ -21,7 +21,7 @@ export function FriendsScreen() {
       setSearchResults([]);
       return;
     }
-    
+
     setIsSearching(true);
     try {
       const response = await usersApi.search(searchQuery.trim());
@@ -54,18 +54,18 @@ export function FriendsScreen() {
     return (
       <View style={styles.userCard}>
         <View style={styles.userInfo}>
-           <View style={styles.avatarPlaceholder}>
-             <Text style={styles.avatarText}>{item.username.charAt(0).toUpperCase()}</Text>
-           </View>
-           <View style={styles.userDetails}>
-             <Text style={styles.username}>{item.username}</Text>
-             <Text style={styles.biography} numberOfLines={1}>
-               {item.biography || 'Sin biografía'}
-             </Text>
-           </View>
+          <View style={styles.avatarPlaceholder}>
+            <Text style={styles.avatarText}>{item.username.charAt(0).toUpperCase()}</Text>
+          </View>
+          <View style={styles.userDetails}>
+            <Text style={styles.username}>{item.username}</Text>
+            <Text style={styles.biography} numberOfLines={1}>
+              {item.biography || 'Sin biografía'}
+            </Text>
+          </View>
         </View>
-        <AppButton 
-          title={isSent ? 'Pendiente' : 'Agregar'} 
+        <AppButton
+          title={isSent ? 'Pendiente' : 'Agregar'}
           onPress={() => handleSendRequest(item)}
           isLoading={isLoading}
           variant={isSent ? 'secondary' : 'primary'}
@@ -80,15 +80,15 @@ export function FriendsScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Amigos</Text>
-      
+
       <View style={styles.tabContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'search' && styles.activeTab]}
           onPress={() => setActiveTab('search')}
         >
           <Text style={[styles.tabText, activeTab === 'search' && styles.activeTabText]}>Explorar</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'pending' && styles.activeTab]}
           onPress={() => setActiveTab('pending')}
         >
@@ -116,7 +116,7 @@ export function FriendsScreen() {
           </View>
 
           <Text style={styles.subtitle}>Resultados de búsqueda</Text>
-          
+
           {isSearching ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
           ) : (
