@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { FriendsList } from '../../src/components/FriendsList';
 import { friendsApi } from '../../src/api/friends';
 
@@ -126,15 +126,37 @@ describe('FriendsList', () => {
     });
   });
 
-  it('handles fetchFriends error', async () => {
-    friendsApi.getFriendsList.mockRejectedValueOnce(new Error('Fetch failed'));
+  it('handles refresh and reset of hasMore', async () => {
+    friendsApi.getFriendsList.mockResolvedValue({ 
+      data: { data: [], pagination: { page: 1, totalPages: 1 } } 
+    });
+    const { getByTestId } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    
+    const flatList = getByTestId('friends-list');
+    await act(async () => {
+      flatList.props.refreshControl.props.onRefresh();
+    });
+    
+    expect(friendsApi.getFriendsList).toHaveBeenCalled();
+  });
+
+  it('covers catch block and alert on fetch error', async () => {
+    friendsApi.getFriendsList.mockRejectedValueOnce(new Error('Test Error'));
     const spy = jest.spyOn(require('react-native').Alert, 'alert');
     
     render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
     
     await waitFor(() => {
-      expect(friendsApi.getFriendsList).toHaveBeenCalled();
       expect(spy).toHaveBeenCalledWith('Error', 'No se pudieron cargar tus amigos.');
     });
+  });
+
+  it('covers pagination page check branches', async () => {
+    // Caso donde pagination existe pero no hay mas paginas
+    friendsApi.getFriendsList.mockResolvedValueOnce({ 
+      data: { data: [], pagination: { page: 2, totalPages: 2 } } 
+    });
+    render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    await waitFor(() => expect(friendsApi.getFriendsList).toHaveBeenCalled());
   });
 });

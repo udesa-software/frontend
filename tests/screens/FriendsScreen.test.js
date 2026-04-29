@@ -210,4 +210,26 @@ describe('FriendsScreen', () => {
       expect(spy).toHaveBeenCalledWith('Error', 'Search failed');
     });
   });
+
+  it('covers different error message branches in search and sendRequest', async () => {
+    const spy = jest.spyOn(require('react-native').Alert, 'alert');
+    
+    // 1. Search Error without response (generic error)
+    usersApi.search.mockRejectedValueOnce(new Error('Generic Error'));
+    const { getByPlaceholderText, getByText, findByText } = render(<FriendsScreen />);
+    fireEvent.press(getByText('Explorar'));
+    fireEvent.changeText(getByPlaceholderText('Buscar por usuario'), 'test');
+    fireEvent.press(getByText('Buscar'));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith('Error', 'Generic Error'));
+
+    // 2. sendRequest Error without response
+    usersApi.search.mockResolvedValueOnce({ data: [{ id: '1', username: 'juan' }] });
+    fireEvent.changeText(getByPlaceholderText('Buscar por usuario'), 'juan');
+    fireEvent.press(getByText('Buscar'));
+    await findByText('juan');
+    
+    friendsApi.sendRequest.mockRejectedValueOnce(new Error('Send Failed'));
+    fireEvent.press(getByText('Agregar'));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith('Error', 'Send Failed'));
+  });
 });
