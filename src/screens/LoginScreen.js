@@ -31,12 +31,19 @@ export function LoginScreen({ navigation, route }) {
       setGeneralError(null);
       await login(identifier, password);
     } catch (err) {
+      console.error('[LoginScreen] Error de login:', err);
       if (err.details) {
         setFieldErrors(err.details);
       } else {
-        setGeneralError(err.message || 'Error al iniciar sesión');
-        // Si el mensaje dice que falta validar, mostramos el botón de reenvío
-        if (err.message && err.message.toLowerCase().includes('verific')) {
+        const errorMsg = err.message || 'Error al iniciar sesión';
+        setGeneralError(errorMsg);
+        
+        const isVerificationError = 
+          err.status === 403 || 
+          errorMsg.toLowerCase().includes('verific') || 
+          errorMsg.toLowerCase().includes('cuenta sin verificar');
+
+        if (isVerificationError) {
           setShowResend(true);
         }
       }
