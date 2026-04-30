@@ -21,6 +21,6 @@ export const usersApi = {
     apiClient.patch('/users/profile', data),
 
   // GET /api/users/search
-  search: (username) =>
-    apiClient.get('/users/search', { params: { username } }),
+  search: (q) =>
+    apiClient.get('/users/search', { params: { q } }),
 };
