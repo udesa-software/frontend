@@ -213,18 +213,44 @@ export function MapScreen() {
           initialRegion={{ ...coords, ...INITIAL_DELTA }}
           showsCompass
         >
-          <Marker coordinate={coords} title="Yo" description={myLabel || "Sin tag"} pinColor={colors.primary} />
-          {friends.map((friend) => (
-            <Marker key={friend.userId} coordinate={{ latitude: friend.latitude, longitude: friend.longitude }} pinColor="#FF6B6B">
-              <Callout style={styles.callout}>
-                <View>
-                  <Text style={styles.calloutName}>{friend.username}</Text>
-                  {friend.label && <Text style={styles.calloutLabel}>✨ {friend.label}</Text>}
-                  <Text style={styles.calloutDistance}>📍 A {friend.distance}</Text>
-                </View>
-              </Callout>
-            </Marker>
-          ))}
+          {/* Marcador del Usuario (Más chico) */}
+          <Marker 
+            coordinate={coords} 
+            zIndex={5}
+          >
+            <View style={[styles.miniMarker, { backgroundColor: colors.primary }]} />
+            <Callout>
+              <View style={styles.userCallout}>
+                <Text style={styles.calloutName}>Tú</Text>
+                <Text style={styles.calloutLabel}>{myLabel || "Sin tag"}</Text>
+              </View>
+            </Callout>
+          </Marker>
+
+          {/* Marcadores de Amigos con Micro-Jitter determinista */}
+          {friends.map((friend, index) => {
+            // Micro-jitter determinista (~2 metros por índice) para evitar solapamiento total
+            const jitter = 0.00002 * (index + 1);
+            const jitterLat = friend.latitude + jitter;
+            const jitterLon = friend.longitude + jitter;
+
+            return (
+              <Marker 
+                key={friend.userId} 
+                coordinate={{ latitude: jitterLat, longitude: jitterLon }} 
+                zIndex={10 + index}
+              >
+                <View style={[styles.miniMarker, { backgroundColor: '#FF6B6B' }]} />
+                <Callout style={styles.callout}>
+                  <View>
+                    <Text style={styles.calloutName}>{friend.username}</Text>
+                    {friend.label && <Text style={styles.calloutLabel}>✨ {friend.label}</Text>}
+                    <Text style={styles.calloutDistance}>📍 A {friend.distance}</Text>
+                  </View>
+                </Callout>
+              </Marker>
+            );
+          })}
         </MapView>
         
         {/* User Stats Floating */}
@@ -301,7 +327,43 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   mapWrapper: { flex: 1 },
   map: { flex: 1 },
-  
+  miniMarker: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  userCallout: {
+    padding: 8,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  callout: {
+    width: 160,
+    padding: 5,
+  },
+  calloutName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  calloutLabel: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  calloutDistance: {
+    fontSize: 11,
+    color: '#666',
+  },
   floatingHeader: {
     position: 'absolute', top: 50, left: 20, right: 20,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
