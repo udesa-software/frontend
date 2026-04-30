@@ -46,8 +46,8 @@ export function LoginScreen({ navigation, route }) {
   };
 
   const handleResendCode = async () => {
-    if (!identifier || !identifier.includes('@')) {
-      Alert.alert('Atención', 'Por favor ingresa tu email en el campo de arriba para reenviar el código.');
+    if (!identifier) {
+      Alert.alert('Atención', 'Por favor ingresa tu email o usuario en el campo de arriba para reenviar el código.');
       return;
     }
 

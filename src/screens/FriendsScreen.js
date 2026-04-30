@@ -26,7 +26,7 @@ export function FriendsScreen() {
     setIsSearching(true);
     try {
       const response = await usersApi.search(searchQuery.trim());
-      setSearchResults(response.data);
+      setSearchResults(response.data.users || response.data || []);
     } catch (err) {
       console.error('Error al buscar usuarios:', err);
       const msg = err.response?.data?.error || err.message || 'Error al buscar usuarios';

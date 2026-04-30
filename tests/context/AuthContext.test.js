@@ -139,4 +139,72 @@ describe('AuthContext', () => {
     expect(AsyncStorage.setItem).toHaveBeenCalledWith('userData', JSON.stringify({ biography: 'New Bio' }));
   });
 
+  it('handles logout failure gracefully', async () => {
+    authApi.logout.mockRejectedValueOnce(new Error('Logout failed on server'));
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      await result.current.logout();
+    });
+
+    expect(result.current.user).toBeNull();
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('authToken');
+  });
+
+  it('handles loadStoredSession failure gracefully', async () => {
+    // Espiamos console.error para que no ensucie la salida del test
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    AsyncStorage.getItem.mockRejectedValueOnce(new Error('Read failed'));
+    
+    renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 10));
+    });
+
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('does not save refreshToken if missing in login response', async () => {
+    const loginResponse = {
+      data: {
+        accessToken: 'at',
+        user: { id: '1', username: 'test' }
+      }
+    };
+    authApi.login.mockResolvedValueOnce(loginResponse);
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      await result.current.login('test@test.com', 'pass123');
+    });
+
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not set authToken if missing in login response', async () => {
+    const loginResponse = {
+      data: { user: { id: '1', username: 'test' } }
+    };
+    authApi.login.mockResolvedValueOnce(loginResponse);
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await act(async () => {
+      await result.current.login('test@test.com', 'pass123');
+    });
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith('authToken', expect.anything());
+  });
+
+  it('does not set userData if missing in login response', async () => {
+    const loginResponse = {
+      data: { accessToken: 'at' }
+    };
+    authApi.login.mockResolvedValueOnce(loginResponse);
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await act(async () => {
+      await result.current.login('test@test.com', 'pass123');
+    });
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith('userData', expect.anything());
+  });
 });

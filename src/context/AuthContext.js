@@ -29,7 +29,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Helpers para SecureStore del refreshToken
-  const saveRefreshToken = (token) => SecureStore.setItemAsync('refreshToken', token);
+  const saveRefreshToken = (token) => {
+    if (token) return SecureStore.setItemAsync('refreshToken', token);
+    return Promise.resolve();
+  };
   const clearRefreshToken = () => SecureStore.deleteItemAsync('refreshToken');
 
   const login = async (identifier, password) => {
@@ -37,10 +40,14 @@ export function AuthProvider({ children }) {
     const { accessToken, refreshToken, user, ...rest } = response.data;
 
     // accessToken en AsyncStorage (leído por el interceptor HTTP)
-    await AsyncStorage.setItem('authToken', accessToken);
+    if (accessToken) {
+      await AsyncStorage.setItem('authToken', accessToken);
+    }
     
     // Guardar directamente el objeto 'user', no un objeto con la llave 'user'
-    await AsyncStorage.setItem('userData', JSON.stringify(user));
+    if (user) {
+      await AsyncStorage.setItem('userData', JSON.stringify(user));
+    }
 
     // refreshToken en SecureStore (almacén cifrado del SO)
     await saveRefreshToken(refreshToken);
