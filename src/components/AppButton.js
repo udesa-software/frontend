@@ -5,7 +5,7 @@ import { colors, spacing, fontSizes, radii } from '../theme';
 export function AppButton({
   title,
   onPress,
-  variant = 'primary', // 'primary', 'secondary', 'text'
+  variant = 'primary', // 'primary', 'secondary', 'text', 'danger'
   isLoading = false,
   disabled = false,
   style,
@@ -18,6 +18,8 @@ export function AppButton({
         return styles.secondaryContainer;
       case 'text':
         return styles.textContainer;
+      case 'danger':
+        return styles.dangerContainer;
       case 'primary':
       default:
         return styles.primaryContainer;
@@ -30,6 +32,8 @@ export function AppButton({
         return styles.secondaryText;
       case 'text':
         return styles.textText;
+      case 'danger':
+        return styles.dangerText;
       case 'primary':
       default:
         return styles.primaryText;
@@ -80,6 +84,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingVertical: spacing.xs,
   },
+  dangerContainer: {
+    backgroundColor: colors.error,
+  },
   disabled: {
     opacity: 0.6,
   },
@@ -95,5 +102,8 @@ const styles = StyleSheet.create({
   },
   textText: {
     color: colors.textMuted,
+  },
+  dangerText: {
+    color: colors.text,
   },
 });

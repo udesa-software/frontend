@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
+import { PendingRequestsList } from '../components/PendingRequestsList';
+import { FriendsList } from '../components/FriendsList';
 import { colors, spacing, fontSizes, radii } from '../theme';
 import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 
 export function FriendsScreen() {
+  const [activeTab, setActiveTab] = useState('friends'); // 'friends' | 'search' | 'pending'
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -26,6 +29,8 @@ export function FriendsScreen() {
       setSearchResults(response.data);
     } catch (err) {
       console.error('Error al buscar usuarios:', err);
+      const msg = err.response?.data?.error || err.message || 'Error al buscar usuarios';
+      Alert.alert('Error', msg);
     } finally {
       setIsSearching(false);
     }
@@ -79,41 +84,74 @@ export function FriendsScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Amigos</Text>
       
-      <View style={styles.searchSection}>
-        <AppInput
-          placeholder="Buscar por usuario"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          returnKeyType="search"
-          onSubmitEditing={handleSearch}
-          wrapperStyle={styles.searchInput}
-        />
-        <AppButton
-          title="Buscar"
-          onPress={handleSearch}
-          isLoading={isSearching}
-          style={styles.searchButton}
-        />
+      <View style={styles.tabContainer}>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'friends' && styles.activeTab]}
+          onPress={() => setActiveTab('friends')}
+        >
+          <Text style={[styles.tabText, activeTab === 'friends' && styles.activeTabText]}>Mis Amigos</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'search' && styles.activeTab]}
+          onPress={() => setActiveTab('search')}
+        >
+          <Text style={[styles.tabText, activeTab === 'search' && styles.activeTabText]}>Explorar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'pending' && styles.activeTab]}
+          onPress={() => setActiveTab('pending')}
+        >
+          <Text style={[styles.tabText, activeTab === 'pending' && styles.activeTabText]}>Solicitudes</Text>
+        </TouchableOpacity>
       </View>
 
-      <Text style={styles.subtitle}>Resultados de búsqueda</Text>
-      
-      {isSearching ? (
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
-      ) : (
-        <FlatList
-          data={searchResults}
-          keyExtractor={(item) => item.id}
-          renderItem={renderUserItem}
-          ListEmptyComponent={
-            searchQuery.trim() ? (
-              <Text style={styles.emptyText}>No se encontraron usuarios.</Text>
-            ) : (
-              <Text style={styles.emptyText}>Buscá un usuario para enviar una solicitud.</Text>
-            )
-          }
-          contentContainerStyle={styles.listContent}
-        />
+      {activeTab === 'search' && (
+        <>
+          <View style={styles.searchSection}>
+            <AppInput
+              placeholder="Buscar por usuario"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              onSubmitEditing={handleSearch}
+              wrapperStyle={styles.searchInput}
+            />
+            <AppButton
+              title="Buscar"
+              onPress={handleSearch}
+              isLoading={isSearching}
+              style={styles.searchButton}
+            />
+          </View>
+
+          <Text style={styles.subtitle}>Resultados de búsqueda</Text>
+          
+          {isSearching ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
+          ) : (
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id}
+              renderItem={renderUserItem}
+              ListEmptyComponent={
+                searchQuery.trim() ? (
+                  <Text style={styles.emptyText}>No se encontraron usuarios.</Text>
+                ) : (
+                  <Text style={styles.emptyText}>Buscá un usuario para enviar una solicitud.</Text>
+                )
+              }
+              contentContainerStyle={styles.listContent}
+            />
+          )}
+        </>
+      )}
+
+      {activeTab === 'pending' && (
+        <PendingRequestsList />
+      )}
+
+      {activeTab === 'friends' && (
+        <FriendsList onGoToSearch={() => setActiveTab('search')} />
       )}
     </View>
   );
@@ -131,6 +169,31 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: spacing.lg,
     paddingHorizontal: spacing.lg,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: spacing.xs,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderRadius: radii.sm,
+  },
+  activeTab: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    color: colors.textMuted,
+    fontWeight: '600',
+    fontSize: fontSizes.md,
+  },
+  activeTabText: {
+    color: colors.text,
   },
   searchSection: {
     flexDirection: 'row',
