@@ -33,6 +33,6 @@ describe('usersApi', () => {
   it('search calls get /users/search', async () => {
     apiClient.get.mockResolvedValueOnce({ data: [] });
     await usersApi.search('mateo');
-    expect(apiClient.get).toHaveBeenCalledWith('/users/search', { params: { username: 'mateo' } });
+    expect(apiClient.get).toHaveBeenCalledWith('/users/search', { params: { q: 'mateo' } });
   });
 });
