@@ -11,6 +11,7 @@ export function FriendsList({ onGoToSearch }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [sortBy, setSortBy] = useState('alphabetical'); // 'alphabetical' | 'proximity'
+  const [removingId, setRemovingId] = useState(null);
 
   const fetchFriends = useCallback(async (pageNum, sortParam, isRefresh = false) => {
     if (loading || (!hasMore && !isRefresh)) return;
@@ -54,6 +55,32 @@ export function FriendsList({ onGoToSearch }) {
       fetchFriends(page + 1, sortBy);
     }
   };
+  const handleRemoveFriend = (friendId, username) => {
+    Alert.alert(
+      'Eliminar Amigo',
+      `¿Estás seguro de que quieres eliminar a ${username} de tu lista de amigos?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Eliminar', 
+          style: 'destructive',
+          onPress: async () => {
+            setRemovingId(friendId);
+            try {
+              await friendsApi.removeFriend(friendId);
+              // CA.5: Actualización en tiempo real de la lista local
+              setFriends(prev => prev.filter(f => f.friend_id !== friendId));
+            } catch (err) {
+              console.error('Error al eliminar amigo:', err);
+              Alert.alert('Error', 'No se pudo eliminar al amigo. Reintentá más tarde.');
+            } finally {
+              setRemovingId(null);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const renderSortToggle = () => (
     <View style={styles.sortContainer}>
@@ -83,6 +110,14 @@ export function FriendsList({ onGoToSearch }) {
         <View style={styles.details}>
           <Text style={styles.username}>{item.friend_username}</Text>
         </View>
+        <AppButton 
+          title="Eliminar"
+          variant="danger"
+          style={styles.removeButton}
+          textStyle={styles.removeButtonText}
+          isLoading={removingId === item.friend_id}
+          onPress={() => handleRemoveFriend(item.friend_id, item.friend_username)}
+        />
       </View>
     </View>
   );
@@ -200,6 +235,16 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: 'bold',
     fontSize: fontSizes.md,
+  },
+  removeButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    marginVertical: 0,
+    minHeight: 32,
+    borderRadius: radii.sm,
+  },
+  removeButtonText: {
+    fontSize: fontSizes.sm,
   },
 
   emptyContainer: {
