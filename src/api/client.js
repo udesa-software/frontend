@@ -110,6 +110,14 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // Detectar si la respuesta es HTML (posible redirección de infraestructura/Cloudflare)
+    const contentType = error.response?.headers?.['content-type'] || '';
+    if (contentType.includes('text/html')) {
+      const htmlError = new Error('Error de conexión con el servidor (Respuesta no válida). Por favor, intenta de nuevo más tarde.');
+      htmlError.status = status;
+      return Promise.reject(htmlError);
+    }
+
     const message =
       responseData?.message ||
       responseData?.error ||

@@ -26,8 +26,8 @@ export function ForgotPasswordScreen({ navigation }) {
       await authApi.forgotPassword(identifier);
       setIsSent(true);
     } catch (err) {
-      // CA.4: Incluso si falla con 404, mostramos éxito por seguridad (evitar enumeración)
-      if (err.status === 404) {
+      // CA.4: Incluso si falla con 404 o 410, mostramos éxito por seguridad (evitar enumeración)
+      if (err.status === 404 || err.status === 410) {
         setIsSent(true);
       } else {
         setError(err.message || 'No se pudo procesar la solicitud.');
