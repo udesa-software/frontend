@@ -38,9 +38,7 @@ export function LoginScreen({ navigation, route }) {
         setGeneralError(errorMsg);
         
         const isVerificationError = 
-          err.status === 403 || 
-          errorMsg.toLowerCase().includes('verific') || 
-          errorMsg.toLowerCase().includes('cuenta sin verificar');
+          err.status === 412 || errorMsg.toLowerCase().includes('verific');
 
         if (isVerificationError) {
           setShowResend(true);
@@ -62,8 +60,8 @@ export function LoginScreen({ navigation, route }) {
       await authApi.resendVerification(identifier);
       Alert.alert('¡Enviado!', 'Si tu correo está asociado a una cuenta, pronto recibirás el código.');
     } catch (err) {
-      // Si el error es 404 (no encontrado), mostramos el mismo mensaje de éxito por seguridad (evitar enumeración)
-      if (err.status === 404) {
+      // Si el error es 404 o 410 (no encontrado), mostramos el mismo mensaje de éxito por seguridad (evitar enumeración)
+      if (err.status === 404 || err.status === 410) {
         Alert.alert('¡Enviado!', 'Si tu correo está asociado a una cuenta, pronto recibirás el código.');
       } else {
         setGeneralError(err.message || 'No se pudo reenviar el código.');
