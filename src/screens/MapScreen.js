@@ -17,55 +17,12 @@ import { useAuth } from '../context/AuthContext';
 import { updateLocation, getFriendsLocations, updateLabel, deleteLabel } from '../api/location';
 import { colors, fontSizes, radii, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
+import { CoordsCard, StatusView, SyncBadge } from '../components/MapComponents';
 
 const UPDATE_INTERVAL_MS = 30_000;
 const INITIAL_DELTA = { latitudeDelta: 0.01, longitudeDelta: 0.01 };
 
-function CoordsCard({ lastSent }) {
-  if (!lastSent) return null;
-  return (
-    <View style={styles.syncInfoCard}>
-      <Text style={styles.coordsLastSent}>
-        Actualizado: {lastSent.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-      </Text>
-    </View>
-  );
-}
 
-function StatusView({ loading, emoji, title, message, action }) {
-  return (
-    <View style={styles.statusContainer}>
-      {loading && <ActivityIndicator size="large" color={colors.primary} />}
-      {!loading && emoji ? <Text style={styles.statusEmoji}>{emoji}</Text> : null}
-      {title ? <Text style={styles.statusTitle}>{title}</Text> : null}
-      {message ? <Text style={styles.statusMessage}>{message}</Text> : null}
-      {action && (
-        <Pressable
-          style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-          onPress={action.onPress}
-        >
-          <Text style={styles.actionText}>{action.label}</Text>
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
-function SyncBadge({ status }) {
-  const config = {
-    syncing:  { color: '#F59E0B', text: '⟳' },
-    synced:   { color: '#10B981', text: '●' },
-    error:    { color: '#EF4444', text: '!' },
-    idle:     { color: colors.textMuted, text: '○' },
-  };
-  const { color, text } = config[status] ?? config.idle;
-
-  return (
-    <View style={[styles.miniBadge, { backgroundColor: color + '20', borderColor: color }]}>
-       <Text style={[styles.miniBadgeText, { color }]}>{text}</Text>
-    </View>
-  );
-}
 
 // ── Pantalla Principal ─────────────────────────────────────────────────────
 
@@ -120,10 +77,6 @@ export function MapScreen() {
   }, []);
 
   const onUpdateLabel = async () => {
-    if (!coords) {
-      Alert.alert("GPS", "Espera a tener ubicación para poner un tag.");
-      return;
-    }
     const text = tempLabel.trim();
     setIsUpdatingLabel(true);
     try {
@@ -204,6 +157,48 @@ export function MapScreen() {
 
   function renderMap() {
     if (!coords) return null;
+
+    const JITTER_THRESHOLD = 0.0001; // ~11 meters
+    const getJitteredCoords = (friend, index) => {
+      let isColliding = false;
+      let collisionIndex = 0;
+
+      // Check collision with user
+      if (
+        Math.abs(friend.latitude - coords.latitude) < JITTER_THRESHOLD &&
+        Math.abs(friend.longitude - coords.longitude) < JITTER_THRESHOLD
+      ) {
+        isColliding = true;
+        collisionIndex = index + 1;
+      }
+
+      // Check collision with previous friends
+      if (!isColliding) {
+        for (let i = 0; i < index; i++) {
+          const other = friends[i];
+          if (
+            Math.abs(friend.latitude - other.latitude) < JITTER_THRESHOLD &&
+            Math.abs(friend.longitude - other.longitude) < JITTER_THRESHOLD
+          ) {
+            isColliding = true;
+            collisionIndex = i + index + 1;
+            break;
+          }
+        }
+      }
+
+      if (isColliding) {
+        // Apply circular jitter
+        const angle = collisionIndex * (Math.PI / 4); // 45 degrees step
+        const radius = 0.00015; // ~15 meters
+        return {
+          latitude: friend.latitude + Math.sin(angle) * radius,
+          longitude: friend.longitude + Math.cos(angle) * radius,
+        };
+      }
+      return { latitude: friend.latitude, longitude: friend.longitude };
+    };
+
     return (
       <View style={styles.mapWrapper}>
         <MapView
@@ -213,7 +208,7 @@ export function MapScreen() {
           initialRegion={{ ...coords, ...INITIAL_DELTA }}
           showsCompass
         >
-          {/* Marcador del Usuario (Más chico) */}
+          {}
           <Marker 
             coordinate={coords} 
             zIndex={5}
@@ -227,12 +222,9 @@ export function MapScreen() {
             </Callout>
           </Marker>
 
-          {/* Marcadores de Amigos con Micro-Jitter determinista */}
+          {}
           {friends.map((friend, index) => {
-            // Micro-jitter determinista (~2 metros por índice) para evitar solapamiento total
-            const jitter = 0.00002 * (index + 1);
-            const jitterLat = friend.latitude + jitter;
-            const jitterLon = friend.longitude + jitter;
+            const { latitude: jitterLat, longitude: jitterLon } = getJitteredCoords(friend, index);
 
             return (
               <Marker 
@@ -372,11 +364,6 @@ const styles = StyleSheet.create({
   },
   userHeaderInfo: { flex: 1 },
   greeting: { fontSize: fontSizes.md, fontWeight: '700', color: '#FFFFFE' },
-  syncInfoCard: { marginTop: 2 },
-  coordsLastSent: { fontSize: fontSizes.xs, color: colors.textMuted },
-  
-  miniBadge: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-  miniBadgeText: { fontSize: 10, fontWeight: '900' },
 
   floatingFooter: {
     position: 'absolute', bottom: 30, left: 20, right: 20,
@@ -408,11 +395,4 @@ const styles = StyleSheet.create({
   calloutName: { fontWeight: 'bold', fontSize: fontSizes.md, color: '#000' },
   calloutLabel: { color: colors.primary, fontSize: fontSizes.sm, fontWeight: '600', marginTop: 2 },
   calloutDistance: { fontSize: fontSizes.xs, color: '#444', marginTop: 4 },
-  
-  statusContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
-  statusEmoji: { fontSize: 48, marginBottom: 20 },
-  statusTitle: { fontSize: fontSizes.xl, fontWeight: '700', color: '#FFFFFE' },
-  statusMessage: { fontSize: fontSizes.md, color: colors.textMuted, textAlign: 'center', marginTop: 10 },
-  actionButton: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, marginTop: 20 },
-  actionText: { color: '#FFFFFE', fontWeight: '600' },
 });
