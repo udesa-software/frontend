@@ -1,0 +1,398 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  Alert
+} from 'react-native';
+import * as Location from 'expo-location';
+import * as Battery from 'expo-battery';
+import MapView, { Marker, Callout, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
+import { useAuth } from '../context/AuthContext';
+import { updateLocation, getFriendsLocations, updateLabel, deleteLabel } from '../api/location';
+import { colors, fontSizes, radii, spacing } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
+import { CoordsCard, StatusView, SyncBadge } from '../components/MapComponents';
+
+const UPDATE_INTERVAL_MS = 30_000;
+const INITIAL_DELTA = { latitudeDelta: 0.01, longitudeDelta: 0.01 };
+
+
+
+// ── Pantalla Principal ─────────────────────────────────────────────────────
+
+export function MapScreen() {
+  const { user } = useAuth();
+
+  const [coords, setCoords] = useState(null);
+  const [locationError, setLocationError] = useState(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  const [syncStatus, setSyncStatus] = useState('idle');
+  const [lastSent, setLastSent] = useState(null);
+  const [friends, setFriends] = useState([]);
+  
+  const [myLabel, setMyLabel] = useState('');
+  const [tempLabel, setTempLabel] = useState('');
+  const [isUpdatingLabel, setIsUpdatingLabel] = useState(false);
+
+  const mapRef = useRef(null);
+  const coordsRef = useRef(null);
+  coordsRef.current = coords;
+
+  const sendLocationToBackend = useCallback(async (latitude, longitude) => {
+    try {
+      const batteryLevel = await Battery.getBatteryLevelAsync();
+      if (batteryLevel > 0 && batteryLevel < 0.20) {
+        setSyncStatus('idle');
+        return;
+      }
+      setSyncStatus('syncing');
+      await updateLocation({ latitude, longitude });
+      setSyncStatus('synced');
+      setLastSent(new Date());
+    } catch (err) {
+      if (err?.status !== 429) {
+        setSyncStatus('error');
+        console.warn(`[Sync Error] ${err?.status}: ${err?.message}`);
+      }
+    }
+  }, []);
+
+  const fetchFriends = useCallback(async () => {
+    if (!coordsRef.current) return;
+    try {
+      const data = await getFriendsLocations({
+        latitude: coordsRef.current.latitude,
+        longitude: coordsRef.current.longitude
+      });
+      setFriends(data.friends || []);
+    } catch (err) {
+      console.warn(`[Friends Error] ${err?.status}: ${err?.message}`);
+    }
+  }, []);
+
+  const onUpdateLabel = async () => {
+    const text = tempLabel.trim();
+    setIsUpdatingLabel(true);
+    try {
+      if (text === '') {
+        await deleteLabel();
+        setMyLabel('');
+      } else {
+        const truncated = text.substring(0, 30);
+        await updateLabel(truncated);
+        setMyLabel(truncated);
+      }
+      setTempLabel('');
+      Alert.alert("Éxito", "¡Tu tag ha sido actualizado!");
+    } catch (err) {
+      console.warn(`[Label Error] ${err?.status}: ${err?.message}`);
+      Alert.alert("Error", `No se pudo guardar: ${err?.message}`);
+    } finally {
+      setIsUpdatingLabel(false);
+    }
+  };
+
+  const centerOnMe = () => {
+    if (coords && mapRef.current) {
+      mapRef.current.animateToRegion({
+        ...coords,
+        ...INITIAL_DELTA,
+      }, 1000);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    async function initLocation() {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          if (isMounted) {
+            setLocationError('Permiso denegado.');
+            setIsLoadingLocation(false);
+          }
+          return;
+        }
+        let position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => 
+          Location.getLastKnownPositionAsync()
+        );
+
+        if (position && isMounted) {
+          const { latitude, longitude } = position.coords;
+          setCoords({ latitude, longitude });
+          setIsLoadingLocation(false);
+          sendLocationToBackend(latitude, longitude);
+        } else if (isMounted) {
+          setLocationError('Buscando GPS...');
+          setIsLoadingLocation(false);
+        }
+      } catch {
+        if (isMounted) {
+          setLocationError('Error de GPS.');
+          setIsLoadingLocation(false);
+        }
+      }
+    }
+    initLocation();
+    return () => { isMounted = false; };
+  }, [sendLocationToBackend]);
+
+  useEffect(() => {
+    if (!coords) return;
+    fetchFriends();
+    const interval = setInterval(() => {
+      if (coordsRef.current) {
+        sendLocationToBackend(coordsRef.current.latitude, coordsRef.current.longitude);
+        fetchFriends();
+      }
+    }, UPDATE_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [coords, sendLocationToBackend, fetchFriends]);
+
+  function renderMap() {
+    if (!coords) return null;
+
+    const JITTER_THRESHOLD = 0.0001; // ~11 meters
+    const getJitteredCoords = (friend, index) => {
+      let isColliding = false;
+      let collisionIndex = 0;
+
+      // Check collision with user
+      if (
+        Math.abs(friend.latitude - coords.latitude) < JITTER_THRESHOLD &&
+        Math.abs(friend.longitude - coords.longitude) < JITTER_THRESHOLD
+      ) {
+        isColliding = true;
+        collisionIndex = index + 1;
+      }
+
+      // Check collision with previous friends
+      if (!isColliding) {
+        for (let i = 0; i < index; i++) {
+          const other = friends[i];
+          if (
+            Math.abs(friend.latitude - other.latitude) < JITTER_THRESHOLD &&
+            Math.abs(friend.longitude - other.longitude) < JITTER_THRESHOLD
+          ) {
+            isColliding = true;
+            collisionIndex = i + index + 1;
+            break;
+          }
+        }
+      }
+
+      if (isColliding) {
+        // Apply circular jitter
+        const angle = collisionIndex * (Math.PI / 4); // 45 degrees step
+        const radius = 0.00015; // ~15 meters
+        return {
+          latitude: friend.latitude + Math.sin(angle) * radius,
+          longitude: friend.longitude + Math.cos(angle) * radius,
+        };
+      }
+      return { latitude: friend.latitude, longitude: friend.longitude };
+    };
+
+    return (
+      <View style={styles.mapWrapper}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
+          initialRegion={{ ...coords, ...INITIAL_DELTA }}
+          showsCompass
+        >
+          {}
+          <Marker 
+            coordinate={coords} 
+            zIndex={5}
+          >
+            <View style={[styles.miniMarker, { backgroundColor: colors.primary }]} />
+            <Callout>
+              <View style={styles.userCallout}>
+                <Text style={styles.calloutName}>Tú</Text>
+                <Text style={styles.calloutLabel}>{myLabel || "Sin tag"}</Text>
+              </View>
+            </Callout>
+          </Marker>
+
+          {}
+          {friends.map((friend, index) => {
+            const { latitude: jitterLat, longitude: jitterLon } = getJitteredCoords(friend, index);
+
+            return (
+              <Marker 
+                key={friend.userId} 
+                coordinate={{ latitude: jitterLat, longitude: jitterLon }} 
+                zIndex={10 + index}
+              >
+                <View style={[styles.miniMarker, { backgroundColor: '#FF6B6B' }]} />
+                <Callout style={styles.callout}>
+                  <View>
+                    <Text style={styles.calloutName}>{friend.username}</Text>
+                    {friend.label && <Text style={styles.calloutLabel}>✨ {friend.label}</Text>}
+                    <Text style={styles.calloutDistance}>📍 A {friend.distance}</Text>
+                  </View>
+                </Callout>
+              </Marker>
+            );
+          })}
+        </MapView>
+        
+        {/* User Stats Floating */}
+        <View style={styles.floatingHeader}>
+            <View style={styles.userHeaderInfo}>
+                <Text style={styles.greeting}>@{user?.username}</Text>
+                <CoordsCard lastSent={lastSent} />
+            </View>
+            <SyncBadge status={syncStatus} />
+        </View>
+
+        {/* Floating Capsule Footer */}
+        <View style={styles.floatingFooter}>
+            <View style={styles.tagCapsule}>
+                <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textMuted} />
+                <TextInput
+                    style={styles.labelTextInput}
+                    value={tempLabel}
+                    onChangeText={setTempLabel}
+                    placeholder={myLabel || "Pon tu estado..."}
+                    placeholderTextColor={colors.textMuted}
+                    maxLength={30}
+                    returnKeyType="done"
+                />
+                
+                {isUpdatingLabel ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                    <View style={{flexDirection: 'row', gap: 10}}>
+                        {tempLabel !== '' && (
+                            <Pressable onPress={onUpdateLabel}>
+                                <Ionicons name="checkmark-circle" size={28} color={colors.success} />
+                            </Pressable>
+                        )}
+                        {myLabel !== '' && (
+                            <Pressable onPress={async () => {
+                                try {
+                                    await deleteLabel();
+                                    setMyLabel('');
+                                    setTempLabel('');
+                                } catch (err) {
+                                    Alert.alert("Error", "No se pudo borrar.");
+                                }
+                            }}>
+                                <Ionicons name="close-circle-outline" size={28} color={colors.error} />
+                            </Pressable>
+                        )}
+                    </View>
+                )}
+            </View>
+        </View>
+
+        <Pressable style={styles.centerButton} onPress={centerOnMe}>
+          <Ionicons name="locate" size={24} color={colors.primary} />
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {isLoadingLocation ? (
+        <StatusView loading title="Localizando..." />
+      ) : locationError && !coords ? (
+        <StatusView emoji="📍" title="GPS" message={locationError} action={{ label: 'Configuración', onPress: () => Linking.openSettings() }} />
+      ) : (
+        renderMap()
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  mapWrapper: { flex: 1 },
+  map: { flex: 1 },
+  miniMarker: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  userCallout: {
+    padding: 8,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  callout: {
+    width: 160,
+    padding: 5,
+  },
+  calloutName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  calloutLabel: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  calloutDistance: {
+    fontSize: 11,
+    color: '#666',
+  },
+  floatingHeader: {
+    position: 'absolute', top: 50, left: 20, right: 20,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: 'rgba(26, 26, 46, 0.9)', 
+    padding: 12, borderRadius: 20, borderWidth: 1, borderColor: colors.border,
+  },
+  userHeaderInfo: { flex: 1 },
+  greeting: { fontSize: fontSizes.md, fontWeight: '700', color: '#FFFFFE' },
+
+  floatingFooter: {
+    position: 'absolute', bottom: 30, left: 20, right: 20,
+    alignItems: 'center', zIndex: 10,
+  },
+  tagCapsule: {
+    flexDirection: 'row', alignItems: 'center', 
+    backgroundColor: 'rgba(26, 26, 46, 0.95)',
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderRadius: 35,
+    borderWidth: 1, borderColor: colors.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5,
+    elevation: 8,
+    width: '100%',
+  },
+  labelTextInput: { 
+    flex: 1, color: colors.text, fontSize: fontSizes.sm, 
+    fontWeight: '600', marginLeft: 10, padding: 5,
+  },
+
+  centerButton: {
+    position: 'absolute', right: 20, bottom: 120,
+    backgroundColor: colors.surface, width: 48, height: 48, borderRadius: 24,
+    justifyContent: 'center', alignItems: 'center', elevation: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84,
+  },
+  
+  callout: { width: 140, padding: 5 },
+  calloutName: { fontWeight: 'bold', fontSize: fontSizes.md, color: '#000' },
+  calloutLabel: { color: colors.primary, fontSize: fontSizes.sm, fontWeight: '600', marginTop: 2 },
+  calloutDistance: { fontSize: fontSizes.xs, color: '#444', marginTop: 4 },
+});
