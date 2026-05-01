@@ -52,5 +52,20 @@ describe('locationsApi', () => {
     expect(apiClient.patch).toHaveBeenCalledWith('/locations/privacy', { isPrivate: false });
     expect(result.data.isPrivate).toBe(false);
   });
+
+  it('getFriendsLocations posts coordinates to the correct endpoint', async () => {
+    const mockFriends = [
+      { userId: 'f1', username: 'friend1', distance: '500 m' },
+    ];
+    apiClient.post.mockResolvedValueOnce({ data: { friends: mockFriends } });
+
+    const result = await locationsApi.getFriendsLocations(-34.6, -58.4);
+
+    expect(apiClient.post).toHaveBeenCalledWith('/locations/friends', {
+      latitude: -34.6,
+      longitude: -58.4,
+    });
+    expect(result.data.friends).toHaveLength(1);
+  });
 });
 

@@ -119,6 +119,47 @@ describe('FriendsList', () => {
     expect(await findByText(/hace 5 min/)).toBeTruthy();
   });
 
+  it('correctly formats different time intervals in formatTimeAgo', async () => {
+    // Para testear las distintas ramas de formatTimeAgo (ahora, min, h, d, null)
+    friendsApi.getFriendsList.mockResolvedValue({ 
+      data: { data: [], pagination: { page: 1, totalPages: 1 } } 
+    });
+    
+    // 1. Caso: Hace 2 horas
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    // 2. Caso: Hace 3 días
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    // 3. Caso: Ahora (menos de 1 min)
+    const justNow = new Date(Date.now() - 30 * 1000).toISOString();
+
+    Location.requestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    Location.getCurrentPositionAsync.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+    locationsApi.getFriendsLocations.mockResolvedValue({
+      data: {
+        friends: [
+          { userId: 'u1', username: 'user1', distance: '1 km', updatedAt: twoHoursAgo },
+          { userId: 'u2', username: 'user2', distance: '2 km', updatedAt: threeDaysAgo },
+          { userId: 'u3', username: 'user3', distance: '3 km', updatedAt: justNow },
+          { userId: 'u4', username: 'user4', distance: '4 km', updatedAt: null },
+        ]
+      }
+    });
+
+    const { getByText, findByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    
+    // Wait for initial
+    await waitFor(() => expect(friendsApi.getFriendsList).toHaveBeenCalled());
+    
+    fireEvent.press(getByText('Por Cercanía'));
+
+    expect(await findByText(/hace 2 h/)).toBeTruthy();
+    expect(await findByText(/hace 3 d/)).toBeTruthy();
+    expect(await findByText(/ahora/)).toBeTruthy();
+    
+    // El u4 no debería tener el texto de tiempo porque updatedAt es null
+    // (según el componente: {item.updatedAt && ...})
+  });
+
   it('handles location permission denial when switching to proximity sort', async () => {
     friendsApi.getFriendsList.mockResolvedValue({ 
       data: { data: [], pagination: { page: 1, totalPages: 1 } } 
