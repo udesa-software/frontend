@@ -247,4 +247,21 @@ describe('ProfileScreen', () => {
     modals[0].props.onRequestClose();
     // Verifies it doesn't crash
   });
+
+  it('shows error if err.response.data.error exists but not message', async () => {
+    const apiErr = new Error('profile update fail');
+    apiErr.response = { data: { error: 'Generic error message' } };
+    mockUpdateProfile.mockRejectedValueOnce(apiErr);
+
+    const { getAllByText, getByText, getByPlaceholderText, findByText } = render(<ProfileScreen />);
+    
+    fireEvent.press(getAllByText('Editar Perfil')[0]);
+    fireEvent.changeText(getByPlaceholderText('Ingresa tu nombre de usuario'), 'validuser');
+    
+    await act(async () => {
+      fireEvent.press(getByText('Guardar Cambios'));
+    });
+    
+    expect(await findByText('Generic error message')).toBeTruthy();
+  });
 });
