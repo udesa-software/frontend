@@ -8,4 +8,8 @@ export const locationsApi = {
   // PATCH /api/locations/privacy
   setPrivacyStatus: (isPrivate) =>
     apiClient.patch('/locations/privacy', { isPrivate }),
+
+  // POST /api/locations/radar — H6: radar de usuarios cercanos no-amigos
+  getRadar: (latitude, longitude) =>
+    apiClient.post('/locations/radar', { latitude, longitude }),
 };

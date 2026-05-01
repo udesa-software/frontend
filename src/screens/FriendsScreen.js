@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, ScrollView } from 'react-native';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
 import { PendingRequestsList } from '../components/PendingRequestsList';
 import { FriendsList } from '../components/FriendsList';
+import { NearbyUsersList } from '../components/NearbyUsersList';
 import { colors, spacing, fontSizes, radii } from '../theme';
 import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
@@ -16,6 +17,8 @@ export function FriendsScreen() {
   const [actionsLoading, setActionsLoading] = useState({});
   // Guardamos localmente los IDs a los que ya enviamos solicitud en esta sesión
   const [sentRequestIds, setSentRequestIds] = useState(new Set());
+  // H6: toggle de descubrimiento
+  const [showNearby, setShowNearby] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -106,7 +109,11 @@ export function FriendsScreen() {
       </View>
 
       {activeTab === 'search' && (
-        <>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.searchTabContent}
+        >
+          {/* Búsqueda por nombre */}
           <View style={styles.searchSection}>
             <AppInput
               placeholder="Buscar por usuario"
@@ -125,7 +132,7 @@ export function FriendsScreen() {
           </View>
 
           <Text style={styles.subtitle}>Resultados de búsqueda</Text>
-          
+
           {isSearching ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
           ) : (
@@ -133,6 +140,7 @@ export function FriendsScreen() {
               data={searchResults}
               keyExtractor={(item) => item.id}
               renderItem={renderUserItem}
+              scrollEnabled={false}
               ListEmptyComponent={
                 searchQuery.trim() ? (
                   <Text style={styles.emptyText}>No se encontraron usuarios.</Text>
@@ -143,7 +151,22 @@ export function FriendsScreen() {
               contentContainerStyle={styles.listContent}
             />
           )}
-        </>
+
+          {/* H6: Descubrir Amigos */}
+          <View style={styles.discoverSection}>
+            <View style={styles.divider} />
+            {!showNearby ? (
+              <AppButton
+                testID="discover-friends-button"
+                title="Buscar usuarios cercanos"
+                onPress={() => setShowNearby(true)}
+                style={styles.discoverButton}
+              />
+            ) : (
+              <NearbyUsersList />
+            )}
+          </View>
+        </ScrollView>
       )}
 
       {activeTab === 'pending' && (
@@ -195,6 +218,9 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: colors.text,
   },
+  searchTabContent: {
+    paddingBottom: spacing.xxxl,
+  },
   searchSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -218,7 +244,20 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.md,
+  },
+  discoverSection: {
+    marginTop: spacing.xl,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  discoverButton: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
   },
   userCard: {
     flexDirection: 'row',
