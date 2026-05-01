@@ -218,6 +218,24 @@ describe('apiClient Interceptors', () => {
       await expect(responseErrorInterceptor(originalRequest)).rejects.toThrow('Service Unavailable');
     });
 
+    it('should throw a friendly error when receiving a text/html response (infrastructure redirection)', async () => {
+      const originalRequest = {
+        config: { _retry: false, headers: {} },
+        response: {
+          status: 403,
+          headers: { 'content-type': 'text/html' },
+          data: '<html><body>CloudFront error</body></html>'
+        }
+      };
+
+      try {
+        await responseErrorInterceptor(originalRequest);
+      } catch (err) {
+        expect(err.message).toContain('Error de conexión con el servidor');
+        expect(err.status).toBe(403);
+      }
+    });
+
     it('should include details from responseData if present', async () => {
       const originalRequest = {
         config: { _retry: false, headers: {} },
