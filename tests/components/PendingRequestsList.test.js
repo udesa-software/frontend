@@ -183,6 +183,46 @@ describe('PendingRequestsList', () => {
 
     expect(await findByText('loadmore_user')).toBeTruthy();
   });
+
+  it('handles responseData without data property', async () => {
+    friendsApi.getPendingRequests.mockResolvedValueOnce({ 
+      data: [{ requester_id: 'noDataProp', requester_username: 'userNoData' }]
+    });
+    const { findByText } = render(<PendingRequestsList />);
+    expect(await findByText('userNoData')).toBeTruthy();
+  });
+
+  it('handles missing pagination fields', async () => {
+    friendsApi.getPendingRequests.mockResolvedValueOnce({ 
+      data: { data: [{ requester_id: 'noPagination', requester_username: 'userNoPag' }], pagination: {} }
+    });
+    const { findByText } = render(<PendingRequestsList />);
+    expect(await findByText('userNoPag')).toBeTruthy();
+  });
+
+  it('handles missing username fallback', async () => {
+    friendsApi.getPendingRequests.mockResolvedValueOnce({ 
+      data: { data: [{ requester_id: 'noName', created_at: new Date().toISOString() }] }
+    });
+    const { findByText } = render(<PendingRequestsList />);
+    expect(await findByText('U')).toBeTruthy();
+  });
+
+  it('handles missing error message in catch blocks', async () => {
+    const { findAllByText, findByText } = render(<PendingRequestsList />);
+    await findByText('user1');
+    
+    // Reject without response or message
+    friendsApi.acceptRequest.mockRejectedValueOnce({});
+    const spy = jest.spyOn(require('react-native').Alert, 'alert');
+    
+    const allAcceptButtons = await findAllByText('Aceptar');
+    fireEvent.press(allAcceptButtons[0]);
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith('Error', 'Error al aceptar solicitud');
+    });
+  });
 });
 
 

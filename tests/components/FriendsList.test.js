@@ -235,4 +235,65 @@ describe('FriendsList', () => {
     // El amigo debe seguir en la lista
     expect(getByText('testuser1')).toBeTruthy();
   });
+
+  it('handles responseData as an array directly', async () => {
+    const mockFriends = [{ friend_id: 3, friend_username: 'directArrayUser' }];
+    friendsApi.getFriendsList.mockResolvedValueOnce({ data: mockFriends });
+    
+    const { getByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    
+    await waitFor(() => {
+      expect(getByText('directArrayUser')).toBeTruthy();
+    });
+  });
+
+  it('handles missing pagination in response', async () => {
+    friendsApi.getFriendsList.mockResolvedValueOnce({ data: { data: [{ friend_id: 4, friend_username: 'noPagination' }] } });
+    const { getByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    await waitFor(() => {
+      expect(getByText('noPagination')).toBeTruthy();
+    });
+  });
+
+  it('handles missing username fallback', async () => {
+    const mockFriends = [{ friend_id: 5 }]; // No username
+    friendsApi.getFriendsList.mockResolvedValueOnce({ data: { data: mockFriends } });
+    
+    const { getByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    
+    await waitFor(() => {
+      // The avatar should show 'U' if username is missing
+      expect(getByText('U')).toBeTruthy();
+    });
+  });
+
+  it('handles missing friend_id in keyExtractor', async () => {
+    const mockFriends = [{ friend_username: 'noIdUser' }]; 
+    friendsApi.getFriendsList.mockResolvedValueOnce({ data: { data: mockFriends } });
+    
+    const { getByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    
+    await waitFor(() => {
+      expect(getByText('noIdUser')).toBeTruthy();
+    });
+  });
+
+  it('does not load more if hasMore is false', async () => {
+    // First call returns hasMore: false (totalPages: 1)
+    friendsApi.getFriendsList.mockResolvedValueOnce({ 
+      data: { data: [{friend_id: 1, friend_username: 'user1'}], pagination: { page: 1, totalPages: 1 } } 
+    });
+    
+    const { getByTestId, findByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    await findByText('user1');
+    
+    const flatList = getByTestId('friends-list');
+    friendsApi.getFriendsList.mockClear();
+    
+    // Call onEndReached
+    flatList.props.onEndReached();
+    
+    // Should NOT have been called again
+    expect(friendsApi.getFriendsList).not.toHaveBeenCalled();
+  });
 });

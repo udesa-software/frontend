@@ -38,7 +38,7 @@ export function ProfileScreen() {
       await updateProfile({ username: trimmedUsername, biography: editBiography });
       setIsEditModalVisible(false);
     } catch (err) {
-      const errMsg = err.response?.data?.message || err.message || 'Error al actualizar perfil.';
+      const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Error al actualizar perfil.';
       setEditError(errMsg);
     } finally {
       setIsSaving(false);
@@ -65,7 +65,8 @@ export function ProfileScreen() {
       setIsDeleteModalVisible(false);
     } catch (err) {
       console.warn('Error al eliminar cuenta:', err);
-      setDeleteError(err.message || 'Error al eliminar la cuenta.');
+      const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Error al eliminar la cuenta.';
+      setDeleteError(errMsg);
     } finally {
       setIsDeleting(false);
     }
