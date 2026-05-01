@@ -31,7 +31,6 @@ export function LoginScreen({ navigation, route }) {
       setGeneralError(null);
       await login(identifier, password);
     } catch (err) {
-      console.error('[LoginScreen] Error de login:', err);
       if (err.details) {
         setFieldErrors(err.details);
       } else {
