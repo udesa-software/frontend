@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableOpacity, Switch } from 'react-native';
 import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
 import { colors, spacing, fontSizes, radii } from '../theme';
 import { usersApi } from '../api/users';
+import { locationsApi } from '../api/locations';
 import { useNavigation } from '@react-navigation/native';
 
 const ALLOWED_FREQUENCIES = [5, 15, 30];
@@ -15,6 +16,7 @@ export function PreferencesScreen() {
   
   const [radiusKm, setRadiusKm] = useState('25');
   const [frequency, setFrequency] = useState(5);
+  const [isPrivate, setIsPrivate] = useState(false);
   
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -23,11 +25,29 @@ export function PreferencesScreen() {
     const fetchPreferences = async () => {
       try {
         setIsLoading(true);
-        const response = await usersApi.getPreferences();
-        const data = response.data;
-        if (data) {
-          if (data.search_radius_km) setRadiusKm(data.search_radius_km.toString());
-          if (data.location_update_frequency) setFrequency(data.location_update_frequency);
+        const [prefsRes, privacyRes] = await Promise.allSettled([
+          usersApi.getPreferences(),
+          locationsApi.getPrivacyStatus()
+        ]);
+
+        if (prefsRes.status === 'fulfilled') {
+          const data = prefsRes.value.data;
+          if (data) {
+            if (data.search_radius_km) setRadiusKm(data.search_radius_km.toString());
+            if (data.location_update_frequency) setFrequency(data.location_update_frequency);
+          }
+        } else {
+          console.error('Error fetching general preferences:', prefsRes.reason);
+          setErrorMsg('Error al cargar preferencias.');
+        }
+
+        if (privacyRes.status === 'fulfilled') {
+          const privacyData = privacyRes.value.data;
+          if (privacyData) {
+            setIsPrivate(!!privacyData.isPrivate);
+          }
+        } else {
+          console.error('Error fetching privacy status:', privacyRes.reason);
         }
       } catch (err) {
         setErrorMsg('Error al cargar preferencias.');
@@ -37,6 +57,24 @@ export function PreferencesScreen() {
     };
     fetchPreferences();
   }, []);
+
+  const togglePrivacy = async (value) => {
+    const previousValue = isPrivate;
+    setIsPrivate(value);
+    setErrorMsg('');
+    setSuccessMsg('');
+    
+    try {
+      await locationsApi.setPrivacyStatus(value);
+      setSuccessMsg(`Modo ${value ? 'Privado' : 'Público'} activado.`);
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err) {
+      setIsPrivate(previousValue);
+      const apiError = err.response?.data?.message || err.message || 'Error al cambiar modo de privacidad.';
+      setErrorMsg(apiError);
+      setTimeout(() => setErrorMsg(''), 5000);
+    }
+  };
 
   const handleSave = async () => {
     setErrorMsg('');
@@ -116,6 +154,26 @@ export function PreferencesScreen() {
             })}
           </View>
           <Text style={styles.helperText}>Frecuencia con la que la app actualizará y compartirá tu ubicación.</Text>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1, paddingRight: spacing.md }}>
+              <Text style={styles.sectionTitle}>Modo Privado ⚡</Text>
+              <Text style={styles.helperText}>
+                {isPrivate 
+                  ? 'Tu perfil es privado. Solo tus amigos pueden ver tu ubicación y no aparecerás en búsquedas globales.' 
+                  : 'Tu perfil es público. Otros usuarios pueden encontrarte y ver tu ubicación en el radar.'}
+              </Text>
+            </View>
+            <Switch
+              value={isPrivate}
+              onValueChange={togglePrivacy}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={Platform.OS === 'ios' ? undefined : (isPrivate ? colors.primaryLight || '#fff' : '#f4f3f4')}
+              disabled={isSaving}
+            />
+          </View>
         </View>
 
         <AppButton
@@ -239,5 +297,10 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     marginTop: spacing.sm,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 });
