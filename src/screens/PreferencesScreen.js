@@ -4,7 +4,7 @@ import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
 import { colors, spacing, fontSizes, radii } from '../theme';
 import { usersApi } from '../api/users';
-import { locationsApi } from '../api/locations';
+import { getPrivacyStatus, setPrivacyStatus } from '../api/location';
 import { useNavigation } from '@react-navigation/native';
 
 const ALLOWED_FREQUENCIES = [5, 15, 30];
@@ -27,7 +27,7 @@ export function PreferencesScreen() {
         setIsLoading(true);
         const [prefsRes, privacyRes] = await Promise.allSettled([
           usersApi.getPreferences(),
-          locationsApi.getPrivacyStatus()
+          getPrivacyStatus()
         ]);
 
         if (prefsRes.status === 'fulfilled') {
@@ -42,7 +42,7 @@ export function PreferencesScreen() {
         }
 
         if (privacyRes.status === 'fulfilled') {
-          const privacyData = privacyRes.value.data;
+          const privacyData = privacyRes.value;
           if (privacyData) {
             setIsPrivate(!!privacyData.isPrivate);
           }
@@ -65,7 +65,7 @@ export function PreferencesScreen() {
     setSuccessMsg('');
     
     try {
-      await locationsApi.setPrivacyStatus(value);
+      await setPrivacyStatus(value);
       setSuccessMsg(`Modo ${value ? 'Privado' : 'Público'} activado.`);
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {

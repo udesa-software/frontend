@@ -10,10 +10,8 @@ jest.mock('expo-location', () => ({
   Accuracy: { Balanced: 3 },
 }));
 
-jest.mock('../../src/api/locations', () => ({
-  locationsApi: {
-    getRadar: jest.fn(),
-  },
+jest.mock('../../src/api/location', () => ({
+  getRadar: jest.fn(),
 }));
 
 jest.mock('../../src/api/friends', () => ({
@@ -23,7 +21,7 @@ jest.mock('../../src/api/friends', () => ({
 }));
 
 import * as Location from 'expo-location';
-import { locationsApi } from '../../src/api/locations';
+import { getRadar } from '../../src/api/location';
 import { friendsApi } from '../../src/api/friends';
 import { NearbyUsersList } from '../../src/components/NearbyUsersList';
 
@@ -49,7 +47,7 @@ describe('NearbyUsersList', () => {
     Location.getCurrentPositionAsync.mockResolvedValue({
       coords: { latitude: -34.6, longitude: -58.4 },
     });
-    locationsApi.getRadar.mockReturnValue(new Promise(() => {})); // pending
+    getRadar.mockReturnValue(new Promise(() => {})); // pending
 
     const { UNSAFE_getByType } = render(<NearbyUsersList />);
 
@@ -60,13 +58,11 @@ describe('NearbyUsersList', () => {
 
   it('renders nearby users after successful fetch', async () => {
     grantedLocation();
-    locationsApi.getRadar.mockResolvedValueOnce({
-      data: {
-        users: [
-          { userId: 'u1', username: 'alice', distance: '1.2 km', distanceMeters: 1200 },
-          { userId: 'u2', username: 'bob', distance: '800 m', distanceMeters: 800 },
-        ],
-      },
+    getRadar.mockResolvedValueOnce({
+      users: [
+        { userId: 'u1', username: 'alice', distance: '1.2 km', distanceMeters: 1200 },
+        { userId: 'u2', username: 'bob', distance: '800 m', distanceMeters: 800 },
+      ],
     });
 
     const { findByText, getByText } = render(<NearbyUsersList />);
@@ -81,10 +77,8 @@ describe('NearbyUsersList', () => {
 
   it('renders singular result label for 1 user', async () => {
     grantedLocation();
-    locationsApi.getRadar.mockResolvedValueOnce({
-      data: {
-        users: [{ userId: 'u1', username: 'alice', distance: '500 m', distanceMeters: 500 }],
-      },
+    getRadar.mockResolvedValueOnce({
+      users: [{ userId: 'u1', username: 'alice', distance: '500 m', distanceMeters: 500 }],
     });
 
     const { findByText } = render(<NearbyUsersList />);
@@ -93,7 +87,7 @@ describe('NearbyUsersList', () => {
 
   it('renders empty state when no nearby users', async () => {
     grantedLocation();
-    locationsApi.getRadar.mockResolvedValueOnce({ data: { users: [] } });
+    getRadar.mockResolvedValueOnce({ users: [] });
 
     const { findByText } = render(<NearbyUsersList />);
 
@@ -103,7 +97,7 @@ describe('NearbyUsersList', () => {
 
   it('renders empty state when users key is missing', async () => {
     grantedLocation();
-    locationsApi.getRadar.mockResolvedValueOnce({ data: {} }); // no `users` key
+    getRadar.mockResolvedValueOnce({}); // no `users` key
 
     const { findByText } = render(<NearbyUsersList />);
     await findByText('Nadie cerca');
@@ -122,14 +116,14 @@ describe('NearbyUsersList', () => {
       );
     });
     // getRadar should not be called if no permission
-    expect(locationsApi.getRadar).not.toHaveBeenCalled();
+    expect(getRadar).not.toHaveBeenCalled();
   });
 
   it('shows alert on API error with response message', async () => {
     grantedLocation();
     const apiErr = new Error('fail');
     apiErr.response = { data: { error: 'Too far away' } };
-    locationsApi.getRadar.mockRejectedValueOnce(apiErr);
+    getRadar.mockRejectedValueOnce(apiErr);
 
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
     render(<NearbyUsersList />);
@@ -141,7 +135,7 @@ describe('NearbyUsersList', () => {
 
   it('shows alert on API error with err.message fallback', async () => {
     grantedLocation();
-    locationsApi.getRadar.mockRejectedValueOnce(new Error('Network error'));
+    getRadar.mockRejectedValueOnce(new Error('Network error'));
 
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
     render(<NearbyUsersList />);
@@ -153,7 +147,7 @@ describe('NearbyUsersList', () => {
 
   it('shows alert on API error with generic fallback when no message', async () => {
     grantedLocation();
-    locationsApi.getRadar.mockRejectedValueOnce({}); // error without message or response
+    getRadar.mockRejectedValueOnce({}); // error without message or response
 
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
     render(<NearbyUsersList />);
@@ -165,10 +159,8 @@ describe('NearbyUsersList', () => {
 
   it('sends friend request and changes button to Pendiente', async () => {
     grantedLocation();
-    locationsApi.getRadar.mockResolvedValueOnce({
-      data: {
-        users: [{ userId: 'u1', username: 'alice', distance: '1.2 km', distanceMeters: 1200 }],
-      },
+    getRadar.mockResolvedValueOnce({
+      users: [{ userId: 'u1', username: 'alice', distance: '1.2 km', distanceMeters: 1200 }],
     });
     friendsApi.sendRequest.mockResolvedValueOnce({ data: { message: 'Ok' } });
 
@@ -187,10 +179,8 @@ describe('NearbyUsersList', () => {
 
   it('shows alert and keeps Agregar button on sendRequest error with response', async () => {
     grantedLocation();
-    locationsApi.getRadar.mockResolvedValueOnce({
-      data: {
-        users: [{ userId: 'u2', username: 'bob', distance: '500 m', distanceMeters: 500 }],
-      },
+    getRadar.mockResolvedValueOnce({
+      users: [{ userId: 'u2', username: 'bob', distance: '500 m', distanceMeters: 500 }],
     });
     const apiErr = new Error('err');
     apiErr.response = { data: { error: 'Ya enviaste solicitud' } };
@@ -212,10 +202,8 @@ describe('NearbyUsersList', () => {
 
   it('shows alert on sendRequest error with err.message fallback', async () => {
     grantedLocation();
-    locationsApi.getRadar.mockResolvedValueOnce({
-      data: {
-        users: [{ userId: 'u3', username: 'carol', distance: '300 m', distanceMeters: 300 }],
-      },
+    getRadar.mockResolvedValueOnce({
+      users: [{ userId: 'u3', username: 'carol', distance: '300 m', distanceMeters: 300 }],
     });
     friendsApi.sendRequest.mockRejectedValueOnce(new Error('Send failed'));
 
@@ -232,10 +220,8 @@ describe('NearbyUsersList', () => {
 
   it('renders avatar initial as uppercase first letter of username', async () => {
     grantedLocation();
-    locationsApi.getRadar.mockResolvedValueOnce({
-      data: {
-        users: [{ userId: 'u1', username: 'diana', distance: '200 m', distanceMeters: 200 }],
-      },
+    getRadar.mockResolvedValueOnce({
+      users: [{ userId: 'u1', username: 'diana', distance: '200 m', distanceMeters: 200 }],
     });
 
     const { findByText } = render(<NearbyUsersList />);
@@ -244,10 +230,8 @@ describe('NearbyUsersList', () => {
 
   it('uses U as avatar fallback when username is empty', async () => {
     grantedLocation();
-    locationsApi.getRadar.mockResolvedValueOnce({
-      data: {
-        users: [{ userId: 'u1', username: '', distance: '100 m', distanceMeters: 100 }],
-      },
+    getRadar.mockResolvedValueOnce({
+      users: [{ userId: 'u1', username: '', distance: '100 m', distanceMeters: 100 }],
     });
 
     const { findByText } = render(<NearbyUsersList />);

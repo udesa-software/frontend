@@ -2,7 +2,7 @@ import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { PreferencesScreen } from '../../src/screens/PreferencesScreen';
 import { usersApi } from '../../src/api/users';
-import { locationsApi } from "../../src/api/locations";
+import { getPrivacyStatus, setPrivacyStatus } from "../../src/api/location";
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const mockGoBack = jest.fn();
@@ -20,11 +20,9 @@ jest.mock('../../src/api/users', () => ({
   },
 }));
 
-jest.mock('../../src/api/locations', () => ({
-  locationsApi: {
-    getPrivacyStatus: jest.fn(),
-    setPrivacyStatus: jest.fn(),
-  },
+jest.mock('../../src/api/location', () => ({
+  getPrivacyStatus: jest.fn(),
+  setPrivacyStatus: jest.fn(),
 }));
 
 describe('PreferencesScreen', () => {
@@ -38,7 +36,7 @@ describe('PreferencesScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     usersApi.getPreferences.mockResolvedValue(mockPrefs);
-    locationsApi.getPrivacyStatus.mockResolvedValue({ data: { isPrivate: false } });
+    getPrivacyStatus.mockResolvedValue({ isPrivate: false });
   });
 
   it('renders correctly and loads preferences', async () => {
@@ -47,7 +45,7 @@ describe('PreferencesScreen', () => {
     expect(await findByText('Preferencias')).toBeTruthy();
 
     expect(usersApi.getPreferences).toHaveBeenCalledTimes(1);
-    expect(locationsApi.getPrivacyStatus).toHaveBeenCalledTimes(1);
+    expect(getPrivacyStatus).toHaveBeenCalledTimes(1);
 
     expect(getByDisplayValue('10')).toBeTruthy();
     expect(await findByText('15 min')).toBeTruthy();
@@ -181,20 +179,20 @@ describe('PreferencesScreen', () => {
 
   describe('Private Mode Toggle', () => {
     it('shows correct message when Private Mode is OFF', async () => {
-      locationsApi.getPrivacyStatus.mockResolvedValueOnce({ data: { isPrivate: false } });
+      getPrivacyStatus.mockResolvedValueOnce({ isPrivate: false });
       const { findByText } = render(<PreferencesScreen />);
       expect(await findByText(/Tu perfil es público/)).toBeTruthy();
     });
 
     it('shows correct message when Private Mode is ON', async () => {
-      locationsApi.getPrivacyStatus.mockResolvedValueOnce({ data: { isPrivate: true } });
+      getPrivacyStatus.mockResolvedValueOnce({ isPrivate: true });
       const { findByText } = render(<PreferencesScreen />);
       expect(await findByText(/Tu perfil es privado/)).toBeTruthy();
     });
 
     it('toggles privacy successfully', async () => {
-      locationsApi.getPrivacyStatus.mockResolvedValueOnce({ data: { isPrivate: false } });
-      locationsApi.setPrivacyStatus.mockResolvedValueOnce({ data: { isPrivate: true } });
+      getPrivacyStatus.mockResolvedValueOnce({ isPrivate: false });
+      setPrivacyStatus.mockResolvedValueOnce({ isPrivate: true });
       
       const { getByRole, findByText } = render(<PreferencesScreen />);
       
@@ -208,13 +206,13 @@ describe('PreferencesScreen', () => {
         fireEvent(switchEl, 'onValueChange', true);
       });
 
-      expect(locationsApi.setPrivacyStatus).toHaveBeenCalledWith(true);
+      expect(setPrivacyStatus).toHaveBeenCalledWith(true);
       expect(await findByText('Modo Privado activado.')).toBeTruthy();
     });
 
     it('reverts toggle and shows error if setPrivacyStatus fails', async () => {
-      locationsApi.getPrivacyStatus.mockResolvedValueOnce({ data: { isPrivate: false } });
-      locationsApi.setPrivacyStatus.mockRejectedValueOnce(new Error('API Error'));
+      getPrivacyStatus.mockResolvedValueOnce({ isPrivate: false });
+      setPrivacyStatus.mockRejectedValueOnce(new Error('API Error'));
       
       const { getByRole, findByText } = render(<PreferencesScreen />);
       
@@ -228,7 +226,7 @@ describe('PreferencesScreen', () => {
         fireEvent(switchEl, 'onValueChange', true);
       });
 
-      expect(locationsApi.setPrivacyStatus).toHaveBeenCalledWith(true);
+      expect(setPrivacyStatus).toHaveBeenCalledWith(true);
       expect(await findByText('API Error')).toBeTruthy();
       
       // Should revert to false
@@ -238,7 +236,7 @@ describe('PreferencesScreen', () => {
     it('handles fetching privacy status error gracefully', async () => {
       // Preference fetch succeeds but privacy fetch fails
       usersApi.getPreferences.mockResolvedValueOnce(mockPrefs);
-      locationsApi.getPrivacyStatus.mockRejectedValueOnce(new Error('Fetch Error'));
+      getPrivacyStatus.mockRejectedValueOnce(new Error('Fetch Error'));
       
       const { findByText } = render(<PreferencesScreen />);
       

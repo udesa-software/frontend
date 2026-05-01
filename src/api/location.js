@@ -11,6 +11,9 @@
  *   POST /api/locations/friends → obtener ubicaciones de amigos + distancia
  *   PUT  /api/locations/label   → crear/actualizar etiqueta de lugar
  *   DELETE /api/locations/label → borrar etiqueta
+ *   GET  /api/locations/privacy → obtener estado de modo privado
+ *   PATCH /api/locations/privacy → actualizar estado de modo privado
+ *   POST /api/locations/radar   → descubrir usuarios cercanos (no amigos)
  *
  * Todos los endpoints requieren autenticación (Bearer token JWT).
  * El token se inyecta automáticamente por el interceptor en `client.js`.
@@ -50,7 +53,7 @@ export async function updateLocation({ latitude, longitude, locationUpdateFreque
  * @param {Object} coords
  * @param {number} coords.latitude  - Latitud actual del usuario
  * @param {number} coords.longitude - Longitud actual del usuario
- * @returns {Promise<Array>} Lista de amigos con coordenadas y distancia en km
+ * @returns {Promise<Object>} Objeto con array 'friends'
  */
 export async function getFriendsLocations({ latitude, longitude }) {
   const response = await apiClient.post('/locations/friends', { latitude, longitude });
@@ -76,5 +79,39 @@ export async function updateLabel(label) {
  */
 export async function deleteLabel() {
   const response = await apiClient.delete('/locations/label');
+  return response.data;
+}
+
+/**
+ * Obtiene el estado de privacidad (modo fantasma) del usuario.
+ *
+ * @returns {Promise<Object>} { isPrivate: boolean }
+ */
+export async function getPrivacyStatus() {
+  const response = await apiClient.get('/locations/privacy');
+  return response.data;
+}
+
+/**
+ * Actualiza el estado de privacidad del usuario.
+ *
+ * @param {boolean} isPrivate
+ * @returns {Promise<Object>}
+ */
+export async function setPrivacyStatus(isPrivate) {
+  const response = await apiClient.patch('/locations/privacy', { isPrivate });
+  return response.data;
+}
+
+/**
+ * Obtiene usuarios cercanos que no son amigos (Radar).
+ *
+ * @param {Object} coords
+ * @param {number} coords.latitude
+ * @param {number} coords.longitude
+ * @returns {Promise<Object>} Objeto con array de usuarios cercanos
+ */
+export async function getRadar({ latitude, longitude }) {
+  const response = await apiClient.post('/locations/radar', { latitude, longitude });
   return response.data;
 }

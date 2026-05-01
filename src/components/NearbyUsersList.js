@@ -10,7 +10,7 @@ import {
 import * as Location from 'expo-location';
 import { AppButton } from './AppButton';
 import { colors, spacing, fontSizes, radii } from '../theme';
-import { locationsApi } from '../api/locations';
+import { getRadar } from '../api/location';
 import { friendsApi } from '../api/friends';
 
 export function NearbyUsersList() {
@@ -35,11 +35,11 @@ export function NearbyUsersList() {
         accuracy: Location.Accuracy.Balanced,
       });
 
-      const response = await locationsApi.getRadar(
-        loc.coords.latitude,
-        loc.coords.longitude
-      );
-      setUsers(response.data.users || []);
+      const response = await getRadar({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude
+      });
+      setUsers(response.users || []);
     } catch (err) {
       console.error('Error en radar de descubrimiento:', err);
       const msg =

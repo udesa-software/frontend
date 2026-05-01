@@ -4,7 +4,7 @@ import * as Location from 'expo-location';
 import { AppButton } from './AppButton';
 import { colors, spacing, fontSizes, radii } from '../theme';
 import { friendsApi } from '../api/friends';
-import { locationsApi } from '../api/locations';
+import { getFriendsLocations } from '../api/location';
 
 export function FriendsList({ onGoToSearch }) {
   const [friends, setFriends] = useState([]);
@@ -34,10 +34,13 @@ export function FriendsList({ onGoToSearch }) {
         }
 
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        response = await locationsApi.getFriendsLocations(loc.coords.latitude, loc.coords.longitude);
+        response = await getFriendsLocations({ 
+          latitude: loc.coords.latitude, 
+          longitude: loc.coords.longitude 
+        });
         
         // Normalizamos el formato de location service (userId/username) al de friends service (friend_id/friend_username)
-        const rawFriends = response.data.friends || [];
+        const rawFriends = response.friends || [];
         newFriends = rawFriends.map(f => ({
           friend_id: f.userId,
           friend_username: f.username,

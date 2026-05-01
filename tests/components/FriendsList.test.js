@@ -4,7 +4,7 @@ import { FriendsList } from '../../src/components/FriendsList';
 import { Alert } from 'react-native';
 import * as Location from 'expo-location';
 import { friendsApi } from '../../src/api/friends';
-import { locationsApi } from '../../src/api/locations';
+import { getFriendsLocations } from '../../src/api/location';
 
 jest.mock('../../src/api/friends', () => ({
   friendsApi: {
@@ -13,10 +13,8 @@ jest.mock('../../src/api/friends', () => ({
   }
 }));
 
-jest.mock('../../src/api/locations', () => ({
-  locationsApi: {
-    getFriendsLocations: jest.fn(),
-  }
+jest.mock('../../src/api/location', () => ({
+  getFriendsLocations: jest.fn(),
 }));
 
 jest.mock('expo-location', () => ({
@@ -94,24 +92,22 @@ describe('FriendsList', () => {
 
     // Mock Location API Response
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    locationsApi.getFriendsLocations.mockResolvedValue({
-      data: {
-        friends: [
-          { 
-            userId: 'loc-1', 
-            username: 'nearby-user', 
-            distance: '500 m', 
-            updatedAt: fiveMinutesAgo 
-          }
-        ]
-      }
+    getFriendsLocations.mockResolvedValue({
+      friends: [
+        { 
+          userId: 'loc-1', 
+          username: 'nearby-user', 
+          distance: '500 m', 
+          updatedAt: fiveMinutesAgo 
+        }
+      ]
     });
 
     fireEvent.press(getByText('Por Cercanía'));
 
     await waitFor(() => {
       expect(Location.requestForegroundPermissionsAsync).toHaveBeenCalled();
-      expect(locationsApi.getFriendsLocations).toHaveBeenCalledWith(-34, -58);
+      expect(getFriendsLocations).toHaveBeenCalledWith({ latitude: -34, longitude: -58 });
     });
 
     expect(await findByText('nearby-user')).toBeTruthy();
@@ -134,15 +130,13 @@ describe('FriendsList', () => {
 
     Location.requestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
     Location.getCurrentPositionAsync.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
-    locationsApi.getFriendsLocations.mockResolvedValue({
-      data: {
-        friends: [
-          { userId: 'u1', username: 'user1', distance: '1 km', updatedAt: twoHoursAgo },
-          { userId: 'u2', username: 'user2', distance: '2 km', updatedAt: threeDaysAgo },
-          { userId: 'u3', username: 'user3', distance: '3 km', updatedAt: justNow },
-          { userId: 'u4', username: 'user4', distance: '4 km', updatedAt: null },
-        ]
-      }
+    getFriendsLocations.mockResolvedValue({
+      friends: [
+        { userId: 'u1', username: 'user1', distance: '1 km', updatedAt: twoHoursAgo },
+        { userId: 'u2', username: 'user2', distance: '2 km', updatedAt: threeDaysAgo },
+        { userId: 'u3', username: 'user3', distance: '3 km', updatedAt: justNow },
+        { userId: 'u4', username: 'user4', distance: '4 km', updatedAt: null },
+      ]
     });
 
     const { getByText, findByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
