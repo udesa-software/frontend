@@ -65,9 +65,6 @@ export function FriendsScreen() {
            </View>
            <View style={styles.userDetails}>
              <Text style={styles.username}>{item.username}</Text>
-             <Text style={styles.biography} numberOfLines={1}>
-               {item.biography || 'Sin biografía'}
-             </Text>
            </View>
         </View>
         <AppButton 

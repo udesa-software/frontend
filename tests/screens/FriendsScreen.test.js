@@ -69,26 +69,9 @@ describe('FriendsScreen', () => {
     fireEvent.press(getByText('Buscar'));
 
     await findByText('juan');
-    expect(getByText('Hola')).toBeTruthy();
     expect(usersApi.search).toHaveBeenCalledWith('juan');
   });
 
-  it('renders default biography if user has none', async () => {
-    usersApi.search.mockResolvedValueOnce({
-      data: [{ id: '1', username: 'pedro' }]
-    });
-
-    const { getByPlaceholderText, getByText, findByText } = render(<FriendsScreen />);
-    
-    fireEvent.press(getByText('Explorar'));
-
-    const input = getByPlaceholderText('Buscar por usuario');
-    fireEvent.changeText(input, 'pedro');
-    fireEvent.press(getByText('Buscar'));
-
-    await findByText('pedro');
-    expect(getByText('Sin biografía')).toBeTruthy();
-  });
 
   it('handles search error gracefully', async () => {
     usersApi.search.mockRejectedValueOnce(new Error('Network error'));
