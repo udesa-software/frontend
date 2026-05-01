@@ -21,7 +21,7 @@ export function PendingRequestsList() {
     try {
       const response = await friendsApi.getPendingRequests(pageNum);
       const responseData = response.data;
-      const newRequests = responseData.data || [];
+      const newRequests = responseData.data || responseData || [];
 
       if (isRefresh) {
         setRequests(newRequests);

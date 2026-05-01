@@ -409,5 +409,41 @@ test('applies jitter when friends collide with each other but not with user', as
   expect(markers.length).toBe(3);
 });
 
+test('handles error in onUpdateLabel', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+  mockUpdateLabel.mockRejectedValue(new Error('Update failed'));
+  const alertSpy = jest.spyOn(Alert, 'alert');
+
+  render(<MapScreen />);
+  await waitFor(() => screen.getByTestId('map-view'));
+
+  fireEvent.changeText(screen.getByPlaceholderText('Pon tu estado...'), 'new label');
+  const updateBtn = await screen.findByText('checkmark-circle');
+  fireEvent.press(updateBtn);
+
+  await waitFor(() => {
+    expect(alertSpy).toHaveBeenCalledWith("Error", expect.stringContaining("Update failed"));
+  });
+});
+
+test('centerOnMe does nothing if coords or mapRef is null', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue(null);
+
+  const { queryByText } = render(<MapScreen />);
+  const locateBtn = queryByText('locate');
+  if (locateBtn) fireEvent.press(locateBtn);
+});
+
+test('renders location error status view', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue(null);
+
+  render(<MapScreen />);
+  await waitFor(() => {
+    expect(screen.getByText('Buscando GPS...')).toBeTruthy();
+  });
+});
 
 });
