@@ -13,6 +13,7 @@ import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { PreferencesScreen } from '../screens/PreferencesScreen';
 import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
+import { MapScreen } from '../screens/MapScreen';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { colors, spacing } from '../theme';
 
@@ -59,6 +60,14 @@ function MainTabs() {
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>👥</Text>
         }}
       />
+      {/* Tu pestaña de mapa migrada */}
+      <Tab.Screen
+        name="Mapa"
+        component={MapScreen}
+        options={{
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📍</Text>,
+        }}
+      />
       <Tab.Screen 
         name="Perfil" 
         component={ProfileScreen} 
@@ -90,7 +99,6 @@ function Navigator() {
         }}
       >
         {user ? (
-          // El usuario está logueado: mostramos las pestañas principales y pantallas anidadas
           <Stack.Group>
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen 
@@ -104,7 +112,6 @@ function Navigator() {
             />
           </Stack.Group>
         ) : (
-          // El usuario NO está logueado: mostramos el flujo de autenticación
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
@@ -117,7 +124,6 @@ function Navigator() {
   );
 }
 
-// Envolvemos el Navigator en el AuthProvider para que tenga acceso al contexto
 export function AppNavigator() {
   return (
     <AuthProvider>
@@ -125,4 +131,3 @@ export function AppNavigator() {
     </AuthProvider>
   );
 }
-
