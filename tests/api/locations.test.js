@@ -4,6 +4,7 @@ import { locationsApi } from '../../src/api/locations';
 jest.mock('../../src/api/client', () => ({
   get: jest.fn(),
   patch: jest.fn(),
+  post: jest.fn(),
 }));
 
 describe('locationsApi', () => {
@@ -28,4 +29,28 @@ describe('locationsApi', () => {
     expect(apiClient.patch).toHaveBeenCalledWith('/locations/privacy', { isPrivate: true });
     expect(result.data.isPrivate).toBe(true);
   });
+
+  it('getRadar posts coordinates to the correct endpoint', async () => {
+    const mockUsers = [
+      { userId: 'u1', username: 'alice', distance: '1.2 km', distanceMeters: 1200 },
+    ];
+    apiClient.post.mockResolvedValueOnce({ data: { users: mockUsers } });
+
+    const result = await locationsApi.getRadar(-34.6, -58.4);
+
+    expect(apiClient.post).toHaveBeenCalledWith('/locations/radar', {
+      latitude: -34.6,
+      longitude: -58.4,
+    });
+    expect(result.data.users).toHaveLength(1);
+    expect(result.data.users[0].username).toBe('alice');
+  });
+
+  it('getRadar with false as isPrivate calls setPrivacyStatus correctly', async () => {
+    apiClient.patch.mockResolvedValueOnce({ data: { isPrivate: false } });
+    const result = await locationsApi.setPrivacyStatus(false);
+    expect(apiClient.patch).toHaveBeenCalledWith('/locations/privacy', { isPrivate: false });
+    expect(result.data.isPrivate).toBe(false);
+  });
 });
+
