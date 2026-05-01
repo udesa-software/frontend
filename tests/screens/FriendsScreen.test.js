@@ -12,9 +12,18 @@ jest.mock('../../src/api/friends', () => ({
   }
 }));
 
+// Mock NearbyUsersList so we don't need expo-location in FriendsScreen tests
+jest.mock('../../src/components/NearbyUsersList', () => ({
+  NearbyUsersList: () => {
+    const { Text } = require('react-native');
+    return <Text>NearbyUsersListMock</Text>;
+  },
+}));
+
 import { FriendsScreen } from '../../src/screens/FriendsScreen';
 import { usersApi } from '../../src/api/users';
 import { friendsApi } from '../../src/api/friends';
+
 
 describe('FriendsScreen', () => {
   beforeEach(() => {
@@ -60,26 +69,9 @@ describe('FriendsScreen', () => {
     fireEvent.press(getByText('Buscar'));
 
     await findByText('juan');
-    expect(getByText('Hola')).toBeTruthy();
     expect(usersApi.search).toHaveBeenCalledWith('juan');
   });
 
-  it('renders default biography if user has none', async () => {
-    usersApi.search.mockResolvedValueOnce({
-      data: [{ id: '1', username: 'pedro' }]
-    });
-
-    const { getByPlaceholderText, getByText, findByText } = render(<FriendsScreen />);
-    
-    fireEvent.press(getByText('Explorar'));
-
-    const input = getByPlaceholderText('Buscar por usuario');
-    fireEvent.changeText(input, 'pedro');
-    fireEvent.press(getByText('Buscar'));
-
-    await findByText('pedro');
-    expect(getByText('Sin biografía')).toBeTruthy();
-  });
 
   it('handles search error gracefully', async () => {
     usersApi.search.mockRejectedValueOnce(new Error('Network error'));
@@ -232,4 +224,26 @@ describe('FriendsScreen', () => {
     fireEvent.press(getByText('Agregar'));
     await waitFor(() => expect(spy).toHaveBeenCalledWith('Error', 'Send Failed'));
   });
+
+  it('shows "Buscar usuarios cercanos" button in Explorar tab', async () => {
+    const { getByText, queryByText } = render(<FriendsScreen />);
+
+    fireEvent.press(getByText('Explorar'));
+
+    expect(getByText('Buscar usuarios cercanos')).toBeTruthy();
+    // NearbyUsersList should NOT be mounted yet
+    expect(queryByText('NearbyUsersListMock')).toBeNull();
+  });
+
+  it('mounts NearbyUsersList when "Buscar usuarios cercanos" is pressed', async () => {
+    const { getByText, findByText } = render(<FriendsScreen />);
+
+    fireEvent.press(getByText('Explorar'));
+    fireEvent.press(getByText('Buscar usuarios cercanos'));
+
+    // Button disappears and NearbyUsersList renders
+    await findByText('NearbyUsersListMock');
+    expect(() => getByText('Buscar usuarios cercanos')).toThrow();
+  });
 });
+

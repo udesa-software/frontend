@@ -13,7 +13,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicaci\u00f3n para descubrir usuarios cercanos."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +30,13 @@
       "favicon": "./assets/logo-udesamigos.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Necesitamos tu ubicaci\u00f3n para descubrir usuarios cercanos."
+        }
+      ]
     ]
   }
 }
