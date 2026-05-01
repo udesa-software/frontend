@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity } from 'react-native';
+import * as Location from 'expo-location';
 import { AppButton } from './AppButton';
 import { colors, spacing, fontSizes, radii } from '../theme';
 import { friendsApi } from '../api/friends';
+import { locationsApi } from '../api/locations';
 
 export function FriendsList({ onGoToSearch }) {
   const [friends, setFriends] = useState([]);
@@ -18,9 +20,45 @@ export function FriendsList({ onGoToSearch }) {
 
     setLoading(true);
     try {
-      const response = await friendsApi.getFriendsList(sortParam, pageNum);
-      const responseData = response.data;
-      const newFriends = responseData.data || responseData || []; // Handle different pagination formats
+      let response;
+      let newFriends = [];
+      let totalPages = 0;
+
+      if (sortParam === 'proximity') {
+        // H7: Para ordenar por cercanía, consumimos el servicio de locations
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Error', 'Se requiere permiso de ubicación para ordenar por cercanía.');
+          setSortBy('alphabetical');
+          return;
+        }
+
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        response = await locationsApi.getFriendsLocations(loc.coords.latitude, loc.coords.longitude);
+        
+        // Normalizamos el formato de location service (userId/username) al de friends service (friend_id/friend_username)
+        const rawFriends = response.data.friends || [];
+        newFriends = rawFriends.map(f => ({
+          friend_id: f.userId,
+          friend_username: f.username,
+          distance: f.distance,
+          distanceMeters: f.distanceMeters,
+          latitude: f.latitude,
+          longitude: f.longitude,
+          label: f.label,
+          updatedAt: f.updatedAt
+        }));
+        
+        // El servicio de locations actualmente no pagina amigos, devuelve todos.
+        totalPages = 1;
+      } else {
+        // Orden alfabético estándar desde el servicio de friends
+        response = await friendsApi.getFriendsList(sortParam, pageNum);
+        const responseData = response.data;
+        newFriends = responseData.data || responseData || [];
+        const pagination = responseData.pagination || {};
+        totalPages = pagination.totalPages || 1;
+      }
 
       if (isRefresh) {
         setFriends(newFriends);
@@ -28,8 +66,7 @@ export function FriendsList({ onGoToSearch }) {
         setFriends(prev => [...prev, ...newFriends]);
       }
 
-      const pagination = responseData.pagination || {};
-      setHasMore(pagination.page ? pagination.page < pagination.totalPages : false);
+      setHasMore(pageNum < totalPages);
       setPage(pageNum);
     } catch (err) {
       console.error('Error al obtener la lista de amigos:', err);
@@ -39,6 +76,21 @@ export function FriendsList({ onGoToSearch }) {
       setRefreshing(false);
     }
   }, [loading, hasMore]);
+
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return null;
+    const now = new Date();
+    const updated = new Date(dateString);
+    const diffMs = now - updated;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'ahora';
+    if (diffMins < 60) return `hace ${diffMins} min`;
+    if (diffHours < 24) return `hace ${diffHours} h`;
+    return `hace ${diffDays} d`;
+  };
 
   useEffect(() => {
     fetchFriends(1, sortBy, true);
@@ -109,6 +161,16 @@ export function FriendsList({ onGoToSearch }) {
         </View>
         <View style={styles.details}>
           <Text style={styles.username}>{item.friend_username}</Text>
+          {item.distance && (
+            <View style={styles.distanceContainer}>
+              <View style={styles.distancePill}>
+                <Text style={styles.distanceText}>📍 {item.distance}</Text>
+              </View>
+              {item.updatedAt && (
+                <Text style={styles.timeAgoText}>• {formatTimeAgo(item.updatedAt)}</Text>
+              )}
+            </View>
+          )}
         </View>
         <AppButton 
           title="Eliminar"
@@ -235,6 +297,28 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: 'bold',
     fontSize: fontSizes.md,
+    marginBottom: 4,
+  },
+  distanceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  distancePill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.round,
+    marginRight: spacing.xs,
+  },
+  distanceText: {
+    color: colors.primary,
+    fontSize: fontSizes.xs,
+    fontWeight: '600',
+  },
+  timeAgoText: {
+    color: colors.textMuted,
+    fontSize: fontSizes.xs,
   },
   removeButton: {
     paddingVertical: spacing.xs,

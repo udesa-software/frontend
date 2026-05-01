@@ -1,13 +1,28 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { FriendsList } from '../../src/components/FriendsList';
+import { Alert } from 'react-native';
+import * as Location from 'expo-location';
 import { friendsApi } from '../../src/api/friends';
+import { locationsApi } from '../../src/api/locations';
 
 jest.mock('../../src/api/friends', () => ({
   friendsApi: {
     getFriendsList: jest.fn(),
     removeFriend: jest.fn(),
   }
+}));
+
+jest.mock('../../src/api/locations', () => ({
+  locationsApi: {
+    getFriendsLocations: jest.fn(),
+  }
+}));
+
+jest.mock('expo-location', () => ({
+  requestForegroundPermissionsAsync: jest.fn(),
+  getCurrentPositionAsync: jest.fn(),
+  Accuracy: { Balanced: 3 }
 }));
 
 describe('FriendsList', () => {
@@ -59,31 +74,72 @@ describe('FriendsList', () => {
     expect(queryByText('¡Aún no tenés amigos!')).toBeNull();
   });
 
-  it('changes sort mode and refetches', async () => {
+  it('changes sort mode to proximity, requests location and fetches from locations service', async () => {
+    // Initial fetch
     friendsApi.getFriendsList.mockResolvedValue({ 
       data: { data: [], pagination: { page: 1, totalPages: 1 } } 
     });
 
-    const { getByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    const { getByText, findByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
 
     await waitFor(() => {
       expect(friendsApi.getFriendsList).toHaveBeenCalledWith('alphabetical', 1);
     });
 
-    // Clear previous calls
-    friendsApi.getFriendsList.mockClear();
+    // Mock Location
+    Location.requestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    Location.getCurrentPositionAsync.mockResolvedValue({
+      coords: { latitude: -34, longitude: -58 }
+    });
+
+    // Mock Location API Response
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    locationsApi.getFriendsLocations.mockResolvedValue({
+      data: {
+        friends: [
+          { 
+            userId: 'loc-1', 
+            username: 'nearby-user', 
+            distance: '500 m', 
+            updatedAt: fiveMinutesAgo 
+          }
+        ]
+      }
+    });
 
     fireEvent.press(getByText('Por Cercanía'));
 
     await waitFor(() => {
-      expect(friendsApi.getFriendsList).toHaveBeenCalledWith('proximity', 1);
+      expect(Location.requestForegroundPermissionsAsync).toHaveBeenCalled();
+      expect(locationsApi.getFriendsLocations).toHaveBeenCalledWith(-34, -58);
     });
 
-    friendsApi.getFriendsList.mockClear();
-    fireEvent.press(getByText('Alfabético'));
+    expect(await findByText('nearby-user')).toBeTruthy();
+    expect(await findByText('📍 500 m')).toBeTruthy();
+    expect(await findByText(/hace 5 min/)).toBeTruthy();
+  });
+
+  it('handles location permission denial when switching to proximity sort', async () => {
+    friendsApi.getFriendsList.mockResolvedValue({ 
+      data: { data: [], pagination: { page: 1, totalPages: 1 } } 
+    });
+    Location.requestForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
+
+    const { getByText, findByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+
+    // Wait for initial alphabetical fetch to complete
     await waitFor(() => {
       expect(friendsApi.getFriendsList).toHaveBeenCalledWith('alphabetical', 1);
     });
+
+    fireEvent.press(getByText('Por Cercanía'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Se requiere permiso de ubicación para ordenar por cercanía.');
+    });
+    
+    // Debería mantenerse en alfabético
+    expect(friendsApi.getFriendsList).toHaveBeenCalledWith('alphabetical', 1);
   });
 
   it('handles pull to refresh', async () => {
@@ -143,12 +199,11 @@ describe('FriendsList', () => {
 
   it('covers catch block and alert on fetch error', async () => {
     friendsApi.getFriendsList.mockRejectedValueOnce(new Error('Test Error'));
-    const spy = jest.spyOn(require('react-native').Alert, 'alert');
     
     render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
     
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith('Error', 'No se pudieron cargar tus amigos.');
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'No se pudieron cargar tus amigos.');
     });
   });
 
@@ -170,8 +225,6 @@ describe('FriendsList', () => {
     });
     friendsApi.removeFriend.mockResolvedValueOnce({ data: { message: 'Amistad eliminada' } });
     
-    const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
-    
     const { getByText, queryByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
     
     await waitFor(() => expect(getByText('testuser1')).toBeTruthy());
@@ -180,14 +233,14 @@ describe('FriendsList', () => {
     fireEvent.press(removeButton);
     
     // Check if Alert was called
-    expect(alertSpy).toHaveBeenCalledWith(
+    expect(Alert.alert).toHaveBeenCalledWith(
       'Eliminar Amigo',
       expect.stringContaining('testuser1'),
       expect.any(Array)
     );
     
     // Extract the "Eliminar" button from the Alert call and press it
-    const alertButtons = alertSpy.mock.calls[0][2];
+    const alertButtons = Alert.alert.mock.calls[0][2];
     const deleteOption = alertButtons.find(b => b.text === 'Eliminar');
     
     await act(async () => {
@@ -209,8 +262,6 @@ describe('FriendsList', () => {
     });
     friendsApi.removeFriend.mockRejectedValueOnce(new Error('API Error'));
     
-    const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
-    
     const { getByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
     
     await waitFor(() => expect(getByText('testuser1')).toBeTruthy());
@@ -218,7 +269,7 @@ describe('FriendsList', () => {
     fireEvent.press(getByText('Eliminar'));
     
     // Alert confirmación
-    const alertButtons = alertSpy.mock.calls[0][2];
+    const alertButtons = Alert.alert.mock.calls[0][2];
     const deleteOption = alertButtons.find(b => b.text === 'Eliminar');
     
     await act(async () => {
@@ -229,7 +280,7 @@ describe('FriendsList', () => {
     
     // Alert error (segundo llamado a Alert.alert)
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith('Error', 'No se pudo eliminar al amigo. Reintentá más tarde.');
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'No se pudo eliminar al amigo. Reintentá más tarde.');
     });
     
     // El amigo debe seguir en la lista

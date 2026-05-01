@@ -12,4 +12,8 @@ export const locationsApi = {
   // POST /api/locations/radar — H6: radar de usuarios cercanos no-amigos
   getRadar: (latitude, longitude) =>
     apiClient.post('/locations/radar', { latitude, longitude }),
+
+  // POST /api/locations/friends — H2: ubicaciones de amigos con distancia
+  getFriendsLocations: (latitude, longitude) =>
+    apiClient.post('/locations/friends', { latitude, longitude }),
 };
