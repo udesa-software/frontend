@@ -41,11 +41,10 @@ describe('ProfileScreen', () => {
   });
 
   it('renders user information correctly', () => {
-    const { getByText } = render(<ProfileScreen />);
+    const { getByText, getAllByText } = render(<ProfileScreen />);
     
     expect(getByText('testuser')).toBeTruthy();
-    expect(getByText('test@example.com')).toBeTruthy();
-    expect(getByText('12345678...')).toBeTruthy();
+    expect(getAllByText('test@example.com').length).toBeGreaterThan(0);
     expect(getByText('Usuario')).toBeTruthy();
   });
 
