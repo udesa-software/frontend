@@ -52,7 +52,7 @@ describe('ForgotPasswordScreen', () => {
     });
 
     expect(await findByText('¡Solicitud enviada!')).toBeTruthy();
-    expect(authApi.forgotPassword).toHaveBeenCalledWith('user@test.com');
+    expect(authApi.forgotPassword).toHaveBeenCalledWith('user@test.com', expect.any(String));
   });
 
   it('shows success view even when API returns 404 (security - avoid enumeration)', async () => {
