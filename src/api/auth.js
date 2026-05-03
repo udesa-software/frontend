@@ -27,8 +27,8 @@ export const authApi = {
     apiClient.get('/auth/verify-email', { params: { token } }),
 
   // POST /api/auth/forgot-password
-  forgotPassword: (identifier) =>
-    apiClient.post('/auth/forgot-password', { identifier }),
+  forgotPassword: (identifier, returnUrl) =>
+    apiClient.post('/auth/forgot-password', { identifier, returnUrl }),
 
   // GET /api/auth/reset-password?token=<uuid>
   verifyResetToken: (token) =>

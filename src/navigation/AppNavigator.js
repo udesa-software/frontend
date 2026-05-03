@@ -26,7 +26,7 @@ const linking = {
   prefixes: [prefix, 'udesamigos://'],
   config: {
     screens: {
-      ResetPassword: 'ResetPassword',
+      ResetPassword: 'reset-password',
     },
   },
 };

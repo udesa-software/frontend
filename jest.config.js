@@ -7,6 +7,7 @@ module.exports = {
   moduleNameMapper: {
     '^expo-secure-store$': '<rootDir>/__mocks__/expo-secure-store.js',
     '^@react-native-async-storage/async-storage$': '<rootDir>/__mocks__/async-storage.js',
+    '^expo-linking$': '<rootDir>/__mocks__/expo-linking.js',
   },
   collectCoverage: true,
   collectCoverageFrom: [
