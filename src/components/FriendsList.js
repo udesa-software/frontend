@@ -157,10 +157,15 @@ export function FriendsList({ onGoToSearch }) {
   const renderItem = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.userInfo}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {(item.friend_username || 'U').charAt(0).toUpperCase()}
-          </Text>
+        {/* Avatar con indicador de presencia online (H10 CA.2) */}
+        <View style={styles.avatarWrapper}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {(item.friend_username || 'U').charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          {/* CA.2: punto verde si online, gris si offline */}
+          <View style={[styles.onlineDot, item.is_online ? styles.onlineDotOnline : styles.onlineDotOffline]} />
         </View>
         <View style={styles.details}>
           <Text style={styles.username}>{item.friend_username}</Text>
@@ -292,6 +297,28 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: 'bold',
     fontSize: fontSizes.lg,
+  },
+  // H10 CA.2: wrapper relativo para posicionar el punto sobre el avatar
+  avatarWrapper: {
+    position: 'relative',
+    marginRight: spacing.md,
+  },
+  // H10 CA.2: indicador de presencia — punto en la esquina inferior derecha del avatar
+  onlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: colors.surface, // borde del mismo color que la card para efecto "flotante"
+  },
+  onlineDotOnline: {
+    backgroundColor: '#22c55e', // verde
+  },
+  onlineDotOffline: {
+    backgroundColor: '#6b7280', // gris
   },
   details: {
     flex: 1,
