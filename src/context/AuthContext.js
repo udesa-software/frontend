@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { authApi } from '../api/auth';
 import { usersApi } from '../api/users';
+import { notificationsApi } from '../api/notifications';
+import { notificationService } from '../services/notificationService';
 
 const AuthContext = createContext(null);
 
@@ -17,7 +19,10 @@ export function AuthProvider({ children }) {
         const token = await AsyncStorage.getItem('authToken');
         const userData = await AsyncStorage.getItem('userData');
         if (token && userData) {
-          setUser(JSON.parse(userData));
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+          // Intentar registrar token al cargar sesión (H11 CA.3)
+          registerPushToken(parsedUser.id);
         }
       } catch (err) {
         console.error('Error cargando sesión:', err);
@@ -27,6 +32,20 @@ export function AuthProvider({ children }) {
     };
     loadStoredSession();
   }, []);
+
+  // Función interna para obtener y registrar el token
+  const registerPushToken = async (userId) => {
+    try {
+      const token = await notificationService.registerForPushNotificationsAsync();
+      if (token) {
+        await notificationsApi.registerToken(userId, token);
+        console.log('[AuthContext] Push Token registrado exitosamente');
+      }
+    } catch (err) {
+      console.warn('[AuthContext] Error registrando push token:', err.message);
+    }
+  };
+
 
   // Helpers para SecureStore del refreshToken
   const saveRefreshToken = (token) => {
@@ -53,7 +72,12 @@ export function AuthProvider({ children }) {
     await saveRefreshToken(refreshToken);
 
     setUser(user);
+    
+    // Registrar token de notificaciones push (CA.3)
+    registerPushToken(user.id);
+
     return response.data;
+
   };
 
   const clearLocalSession = async () => {
