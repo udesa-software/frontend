@@ -227,6 +227,13 @@ describe('notificationService', () => {
     const originalProjectId = Constants.expoConfig.extra.eas.projectId;
     delete Constants.expoConfig.extra.eas.projectId;
 
+    const appConfig = require('../../app.json');
+    let originalAppProjectId;
+    if (appConfig.expo && appConfig.expo.extra && appConfig.expo.extra.eas) {
+      originalAppProjectId = appConfig.expo.extra.eas.projectId;
+      delete appConfig.expo.extra.eas.projectId;
+    }
+
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     
     await registerForPushNotificationsAsync();
@@ -234,10 +241,16 @@ describe('notificationService', () => {
     expect(consoleSpy).toHaveBeenCalledWith('[NotificationService] No projectId found in configuration.');
     
     Constants.expoConfig.extra.eas.projectId = originalProjectId;
+    if (originalAppProjectId) {
+      appConfig.expo.extra.eas.projectId = originalAppProjectId;
+    }
     consoleSpy.mockRestore();
   });
 
   it('executes the notification handler correctly', async () => {
+    jest.isolateModules(() => {
+      require('../../src/services/notificationService');
+    });
     const handlerConfig = Notifications.setNotificationHandler.mock.calls[0][0];
     const result = await handlerConfig.handleNotification();
     expect(result).toEqual({

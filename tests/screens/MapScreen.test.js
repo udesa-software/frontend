@@ -529,6 +529,7 @@ test('shows alert when deleteLabel fails', async () => {
   mockRequestPermissions.mockResolvedValue({ status: 'granted' });
   mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
   mockDeleteLabel.mockRejectedValue(new Error('Delete fail'));
+  mockUpdateLabel.mockResolvedValue();
   const alertSpy = jest.spyOn(Alert, 'alert');
 
   render(<MapScreen />);
