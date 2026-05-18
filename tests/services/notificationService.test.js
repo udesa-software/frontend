@@ -188,4 +188,63 @@ describe('notificationService', () => {
     consoleSpy.mockRestore();
     cleanup();
   });
+  it('warns if navigation is not ready when responding to MapFocus notification', () => {
+    const mockListener = jest.fn();
+    Notifications.addNotificationResponseReceivedListener.mockImplementationOnce((callback) => {
+      mockListener.mockImplementation(callback);
+      return { remove: jest.fn() };
+    });
+
+    navigationRef.isReady.mockReturnValue(false);
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const cleanup = setupNotificationListeners();
+
+    mockListener({
+      notification: {
+        request: {
+          content: {
+            data: { screen: 'MapFocus', friendId: 'friend-123' },
+          },
+        },
+      },
+    });
+
+    expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith('[NotificationService] Navigation router not ready to deep-navigate');
+    
+    consoleSpy.mockRestore();
+    cleanup();
+  });
+
+  it('warns if projectId is missing', async () => {
+    Device.isDevice = true;
+    Notifications.getPermissionsAsync.mockResolvedValueOnce({ status: 'granted' });
+    Notifications.getExpoPushTokenAsync.mockResolvedValueOnce({ data: 'ExponentPushToken[mock]' });
+    notificationsApi.registerToken.mockResolvedValueOnce({ status: 'ok' });
+
+    const Constants = require('expo-constants');
+    const originalProjectId = Constants.expoConfig.extra.eas.projectId;
+    delete Constants.expoConfig.extra.eas.projectId;
+
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    
+    await registerForPushNotificationsAsync();
+    
+    expect(consoleSpy).toHaveBeenCalledWith('[NotificationService] No projectId found in configuration.');
+    
+    Constants.expoConfig.extra.eas.projectId = originalProjectId;
+    consoleSpy.mockRestore();
+  });
+
+  it('executes the notification handler correctly', async () => {
+    const handlerConfig = Notifications.setNotificationHandler.mock.calls[0][0];
+    const result = await handlerConfig.handleNotification();
+    expect(result).toEqual({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    });
+  });
+
 });

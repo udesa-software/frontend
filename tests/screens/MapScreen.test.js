@@ -476,4 +476,77 @@ test('centers on friend if focusUserId is provided in route', async () => {
   // however, this code path will execute and be covered by Istanbul since we passed focusUserId.
 });
 
+test('handles error in fetchFriends', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+  mockGetFriendsLocations.mockRejectedValue({ status: 500, message: 'Friend Error' });
+  
+  const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+  render(<MapScreen />);
+  await waitFor(() => {
+    expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('[Friends Error]'));
+  });
+
+  consoleWarnSpy.mockRestore();
+});
+
+test('ignores 429 error silently in sendLocationToBackend', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+  mockUpdateLocation.mockRejectedValue({ status: 429, message: 'Too Many Requests' });
+  
+  const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+  render(<MapScreen />);
+  await waitFor(() => screen.getByTestId('map-view'));
+  
+  expect(consoleWarnSpy).not.toHaveBeenCalledWith(expect.stringContaining('[Sync Error]'));
+  
+  consoleWarnSpy.mockRestore();
+});
+
+test('deletes label when tempLabel is only whitespaces', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+  mockDeleteLabel.mockResolvedValue();
+
+  render(<MapScreen />);
+  await waitFor(() => screen.getByTestId('map-view'));
+
+  const input = screen.getByPlaceholderText('Pon tu estado...');
+  fireEvent.changeText(input, '   ');
+
+  const saveButton = await screen.findByText('checkmark-circle');
+  fireEvent.press(saveButton);
+
+  await waitFor(() => {
+    expect(mockDeleteLabel).toHaveBeenCalled();
+  });
+});
+
+test('shows alert when deleteLabel fails', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+  mockDeleteLabel.mockRejectedValue(new Error('Delete fail'));
+  const alertSpy = jest.spyOn(Alert, 'alert');
+
+  render(<MapScreen />);
+  await waitFor(() => screen.getByTestId('map-view'));
+
+  const input = screen.getByPlaceholderText('Pon tu estado...');
+  fireEvent.changeText(input, 'Hola');
+
+  const updateBtn = await screen.findByText('checkmark-circle');
+  fireEvent.press(updateBtn);
+  await waitFor(() => expect(mockUpdateLabel).toHaveBeenCalled());
+
+  const deleteBtn = await screen.findByText('close-circle-outline');
+  fireEvent.press(deleteBtn);
+
+  await waitFor(() => {
+    expect(alertSpy).toHaveBeenCalledWith("Error", "No se pudo borrar.");
+  });
+});
+
 });
