@@ -10,3 +10,14 @@ jest.mock('react-native', () => {
 // Silencia console.error/warn
 global.console.error = jest.fn();
 global.console.warn = jest.fn();
+
+// Mock global de react-navigation para evitar errores de useRoute
+jest.mock('@react-navigation/native', () => {
+  const actualNav = jest.requireActual('@react-navigation/native');
+  return {
+    ...actualNav,
+    useRoute: jest.fn().mockReturnValue({
+      params: {},
+    }),
+  };
+});

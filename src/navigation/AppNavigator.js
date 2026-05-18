@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { navigationRef } from './navigationRef';
+import { setupNotificationListeners } from '../services/notificationService';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Linking from 'expo-linking';
@@ -96,6 +98,13 @@ function MainTabs() {
 function Navigator() {
   const { user, isLoading } = useAuth();
 
+  useEffect(() => {
+    if (user) {
+      const cleanupListeners = setupNotificationListeners();
+      return () => cleanupListeners();
+    }
+  }, [user]);
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
@@ -105,7 +114,7 @@ function Navigator() {
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

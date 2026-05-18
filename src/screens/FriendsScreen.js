@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, ScrollView } from 'react-native';
+import { useRoute } from '@react-navigation/native';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
 import { PendingRequestsList } from '../components/PendingRequestsList';
@@ -10,8 +11,15 @@ import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 
 export function FriendsScreen() {
+  const route = useRoute();
   const [activeTab, setActiveTab] = useState('friends'); // 'friends' | 'search' | 'pending'
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (route.params?.activeTab) {
+      setActiveTab(route.params.activeTab);
+    }
+  }, [route.params?.activeTab]);
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [actionsLoading, setActionsLoading] = useState({});

@@ -23,6 +23,7 @@ jest.mock('../../src/components/NearbyUsersList', () => ({
 import { FriendsScreen } from '../../src/screens/FriendsScreen';
 import { usersApi } from '../../src/api/users';
 import { friendsApi } from '../../src/api/friends';
+import { useRoute } from '@react-navigation/native';
 
 
 describe('FriendsScreen', () => {
@@ -244,6 +245,19 @@ describe('FriendsScreen', () => {
     // Button disappears and NearbyUsersList renders
     await findByText('NearbyUsersListMock');
     expect(() => getByText('Buscar usuarios cercanos')).toThrow();
+  });
+
+  it('sets activeTab from route params if provided', () => {
+    friendsApi.getPendingRequests = jest.fn().mockResolvedValue({ 
+      data: { data: [], pagination: { page: 1, totalPages: 0 } } 
+    });
+    
+    useRoute.mockReturnValueOnce({ params: { activeTab: 'pending' } });
+    const { queryByText, queryByPlaceholderText } = render(<FriendsScreen />);
+
+    // Since it starts in 'pending', the search input and 'Mis Amigos' alphabetical list shouldn't be there
+    expect(queryByPlaceholderText('Buscar por usuario')).toBeNull();
+    // Assuming PendingRequestsList is mounted when 'pending' is active
   });
 });
 
