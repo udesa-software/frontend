@@ -89,6 +89,15 @@ export function setupNotificationListeners() {
       } else {
         console.warn('[NotificationService] Navigation router not ready to deep-navigate');
       }
+    } else if (data && data.screen === 'MapFocus') {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('Main', {
+          screen: 'Mapa',
+          params: { focusUserId: data.friendId },
+        });
+      } else {
+        console.warn('[NotificationService] Navigation router not ready to deep-navigate');
+      }
     }
   });
 

@@ -14,6 +14,7 @@ import * as Location from 'expo-location';
 import * as Battery from 'expo-battery';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useAuth } from '../context/AuthContext';
+import { useRoute } from '@react-navigation/native';
 import { updateLocation, getFriendsLocations, updateLabel, deleteLabel } from '../api/location';
 import { colors, fontSizes, radii, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +29,7 @@ const INITIAL_DELTA = { latitudeDelta: 0.01, longitudeDelta: 0.01 };
 
 export function MapScreen() {
   const { user } = useAuth();
+  const route = useRoute();
 
   const [coords, setCoords] = useState(null);
   const [locationError, setLocationError] = useState(null);
@@ -154,6 +156,19 @@ export function MapScreen() {
     }, UPDATE_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [coords, sendLocationToBackend, fetchFriends]);
+
+  useEffect(() => {
+    if (route.params?.focusUserId && friends.length > 0) {
+      const friend = friends.find(f => f.userId === route.params.focusUserId);
+      if (friend && mapRef.current) {
+        mapRef.current.animateToRegion({
+          latitude: friend.latitude,
+          longitude: friend.longitude,
+          ...INITIAL_DELTA,
+        }, 1000);
+      }
+    }
+  }, [route.params?.focusUserId, friends]);
 
   function renderMap() {
     if (!coords) return null;
