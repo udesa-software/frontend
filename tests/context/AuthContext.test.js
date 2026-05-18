@@ -22,6 +22,11 @@ import { authApi } from '../../src/api/auth';
 import { usersApi } from '../../src/api/users';
 import { AuthProvider, useAuth } from '../../src/context/AuthContext';
 
+jest.mock('../../src/services/notificationService', () => ({
+  registerForPushNotificationsAsync: jest.fn(() => Promise.resolve()),
+}));
+import { registerForPushNotificationsAsync } from '../../src/services/notificationService';
+
 const wrapper = ({ children }) => <AuthProvider>{children}</AuthProvider>;
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -206,5 +211,42 @@ describe('AuthContext', () => {
       await result.current.login('test@test.com', 'pass123');
     });
     expect(AsyncStorage.setItem).not.toHaveBeenCalledWith('userData', expect.anything());
+  });
+
+  it('handles push registration error on loadStoredSession gracefully', async () => {
+    registerForPushNotificationsAsync.mockRejectedValueOnce(new Error('Push error'));
+    const userData = { id: '1', username: 'test' };
+    await AsyncStorage.setItem('authToken', 'fake-token');
+    await AsyncStorage.setItem('userData', JSON.stringify(userData));
+
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 10));
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to trigger auto-restored token registration:', expect.any(Error));
+    consoleSpy.mockRestore();
+  });
+
+  it('handles push registration error on login gracefully', async () => {
+    registerForPushNotificationsAsync.mockRejectedValueOnce(new Error('Push error'));
+    authApi.login.mockResolvedValueOnce({
+      data: {
+        accessToken: 'at',
+        user: { id: '1', username: 'test' }
+      }
+    });
+
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      await result.current.login('test@test.com', 'pass');
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to trigger post-login token registration:', expect.any(Error));
+    consoleSpy.mockRestore();
   });
 });
