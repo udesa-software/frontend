@@ -165,7 +165,10 @@ export function FriendsList({ onGoToSearch }) {
             </Text>
           </View>
           {/* CA.2: punto verde si online, gris si offline */}
-          <View style={[styles.onlineDot, item.is_online ? styles.onlineDotOnline : styles.onlineDotOffline]} />
+          <View 
+            testID={`online-dot-${item.friend_id}`}
+            style={[styles.onlineDot, item.is_online ? styles.onlineDotOnline : styles.onlineDotOffline]} 
+          />
         </View>
         <View style={styles.details}>
           <Text style={styles.username}>{item.friend_username}</Text>

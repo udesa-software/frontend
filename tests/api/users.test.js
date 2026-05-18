@@ -35,4 +35,17 @@ describe('usersApi', () => {
     await usersApi.search('mateo');
     expect(apiClient.get).toHaveBeenCalledWith('/users/search', { params: { q: 'mateo' } });
   });
+
+  it('heartbeat calls post /users/heartbeat', async () => {
+    apiClient.post.mockResolvedValueOnce({});
+    await usersApi.heartbeat();
+    expect(apiClient.post).toHaveBeenCalledWith('/users/heartbeat');
+  });
+
+  it('heartbeat no pasa body al endpoint', async () => {
+    apiClient.post.mockResolvedValueOnce({});
+    await usersApi.heartbeat();
+    expect(apiClient.post).toHaveBeenCalledTimes(1);
+    expect(apiClient.post).toHaveBeenCalledWith('/users/heartbeat');
+  });
 });

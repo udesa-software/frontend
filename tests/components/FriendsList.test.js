@@ -383,3 +383,93 @@ describe('FriendsList', () => {
     expect(friendsApi.getFriendsList).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// H11 CA.2: indicador online en FriendsList
+// ---------------------------------------------------------------------------
+describe('FriendsList — indicador online (H11 CA.2)', () => {
+  const mockOnGoToSearch = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('CA.2: muestra el punto online para un amigo con is_online true', async () => {
+    friendsApi.getFriendsList.mockResolvedValueOnce({
+      data: {
+        data: [{ friend_id: 'user-1', friend_username: 'alice', is_online: true }],
+        pagination: { page: 1, totalPages: 1 },
+      },
+    });
+
+    const { findByTestId } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+
+    const dot = await findByTestId('online-dot-user-1');
+    expect(dot).toBeTruthy();
+  });
+
+  it('CA.2: muestra el punto offline para un amigo con is_online false', async () => {
+    friendsApi.getFriendsList.mockResolvedValueOnce({
+      data: {
+        data: [{ friend_id: 'user-2', friend_username: 'bob', is_online: false }],
+        pagination: { page: 1, totalPages: 1 },
+      },
+    });
+
+    const { findByTestId } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+
+    const dot = await findByTestId('online-dot-user-2');
+    expect(dot).toBeTruthy();
+  });
+
+  it('CA.2: el punto de un amigo online tiene backgroundColor verde', async () => {
+    friendsApi.getFriendsList.mockResolvedValueOnce({
+      data: {
+        data: [{ friend_id: 'user-3', friend_username: 'carlos', is_online: true }],
+        pagination: { page: 1, totalPages: 1 },
+      },
+    });
+
+    const { findByTestId } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+
+    const dot = await findByTestId('online-dot-user-3');
+    const flatStyle = Array.isArray(dot.props.style)
+      ? Object.assign({}, ...dot.props.style)
+      : dot.props.style;
+    expect(flatStyle.backgroundColor).toBe('#22c55e');
+  });
+
+  it('CA.2: el punto de un amigo offline tiene backgroundColor gris', async () => {
+    friendsApi.getFriendsList.mockResolvedValueOnce({
+      data: {
+        data: [{ friend_id: 'user-4', friend_username: 'diana', is_online: false }],
+        pagination: { page: 1, totalPages: 1 },
+      },
+    });
+
+    const { findByTestId } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+
+    const dot = await findByTestId('online-dot-user-4');
+    const flatStyle = Array.isArray(dot.props.style)
+      ? Object.assign({}, ...dot.props.style)
+      : dot.props.style;
+    expect(flatStyle.backgroundColor).toBe('#6b7280');
+  });
+
+  it('CA.2: cada amigo tiene su propio indicador identificado por friend_id', async () => {
+    friendsApi.getFriendsList.mockResolvedValueOnce({
+      data: {
+        data: [
+          { friend_id: 'user-5', friend_username: 'eli', is_online: true },
+          { friend_id: 'user-6', friend_username: 'fran', is_online: false },
+        ],
+        pagination: { page: 1, totalPages: 1 },
+      },
+    });
+
+    const { findByTestId } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+
+    expect(await findByTestId('online-dot-user-5')).toBeTruthy();
+    expect(await findByTestId('online-dot-user-6')).toBeTruthy();
+  });
+});
