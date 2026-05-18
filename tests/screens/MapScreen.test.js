@@ -16,6 +16,10 @@ jest.mock('../../src/context/AuthContext', () => ({
   }),
 }));
 
+jest.mock('@react-navigation/native', () => ({
+  useRoute: jest.fn().mockReturnValue({ params: {} }),
+}));
+
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   const { Text } = require('react-native');
@@ -548,6 +552,54 @@ test('shows alert when deleteLabel fails', async () => {
   await waitFor(() => {
     expect(alertSpy).toHaveBeenCalledWith("Error", "No se pudo borrar.");
   });
+});
+
+test('logs warning when updating location fails with error other than 429', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+  mockUpdateLocation.mockRejectedValue({ status: 500, message: 'Internal Server Error' });
+  const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+  render(<MapScreen />);
+  await waitFor(() => screen.getByTestId('map-view'));
+  
+  await waitFor(() => {
+    expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('[Sync Error] 500: Internal Server Error'));
+  });
+  
+  consoleWarnSpy.mockRestore();
+});
+
+test('triggers interval correctly', async () => {
+  jest.useFakeTimers();
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+
+  render(<MapScreen />);
+  await waitFor(() => screen.getByTestId('map-view'));
+
+  mockUpdateLocation.mockClear();
+  mockGetFriendsLocations.mockClear();
+
+  jest.advanceTimersByTime(30000);
+
+  expect(mockUpdateLocation).toHaveBeenCalled();
+  expect(mockGetFriendsLocations).toHaveBeenCalled();
+
+  jest.useRealTimers();
+});
+
+test('opens settings when pressing Configuración on GPS error', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'denied' });
+  const Linking = require('react-native').Linking;
+  jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+
+  render(<MapScreen />);
+
+  const btn = await screen.findByText('Configuración');
+  fireEvent.press(btn);
+
+  expect(Linking.openSettings).toHaveBeenCalled();
 });
 
 });
