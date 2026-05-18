@@ -23,4 +23,9 @@ export const usersApi = {
   // GET /api/users/search
   search: (q) =>
     apiClient.get('/users/search', { params: { q } }),
+
+  // H10 CA.1: heartbeat — notifica al servidor que el usuario está activo.
+  // Se llama cada ~60s en background mientras la app está en uso.
+  heartbeat: () =>
+    apiClient.post('/users/heartbeat'),
 };

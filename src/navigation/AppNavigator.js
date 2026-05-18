@@ -18,6 +18,7 @@ import { FriendsScreen } from '../screens/FriendsScreen';
 import { MapScreen } from '../screens/MapScreen';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { colors, spacing } from '../theme';
+import { usersApi } from '../api/users';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -34,6 +35,19 @@ const linking = {
 };
 
 function MainTabs() {
+  // H10 CA.1: heartbeat — registra actividad del usuario cada 60s para tracking de presencia.
+  // Solo corre mientras MainTabs está montado (usuario autenticado con la app en foreground).
+  useEffect(() => {
+    // Enviar heartbeat inmediato al entrar a la app
+    usersApi.heartbeat().catch(() => {});
+
+    const interval = setInterval(() => {
+      usersApi.heartbeat().catch(() => {}); // fire-and-forget, errores silenciosos
+    }, 60_000); // 60 segundos
+
+    return () => clearInterval(interval); // limpia al cerrar sesión/desmontar
+  }, []);
+
   return (
     <Tab.Navigator
       screenOptions={{
