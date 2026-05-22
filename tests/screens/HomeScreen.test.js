@@ -7,6 +7,32 @@ jest.mock('../../src/context/AuthContext', () => ({
   }),
 }));
 
+jest.mock('../../src/api/notifications', () => ({
+  notificationsApi: {
+    getNotifications: jest.fn().mockResolvedValue({
+      data: {
+        notifications: [
+          { id: 1, title: 'Test Notif', body: 'Test body', is_read: false }
+        ]
+      }
+    })
+  }
+}));
+
+jest.mock('@react-navigation/native', () => {
+  const actualNav = jest.requireActual('@react-navigation/native');
+  return {
+    ...actualNav,
+    useNavigation: () => ({
+      navigate: jest.fn()
+    }),
+    useFocusEffect: (cb) => cb(),
+    useRoute: jest.fn().mockReturnValue({
+      params: {},
+    }),
+  };
+});
+
 import { HomeScreen } from '../../src/screens/HomeScreen';
 
 describe('HomeScreen', () => {
