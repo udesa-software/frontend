@@ -24,4 +24,8 @@ export const friendsApi = {
   // GET /api/friends
   getFriendsList: (sortBy = 'alphabetical', page = 1) =>
     apiClient.get('/friends', { params: { sortBy, page } }),
+
+  // POST /api/friends/report — H9: denunciar usuario
+  reportUser: (reportedId, reason) =>
+    apiClient.post('/friends/report', { reportedId, reason }),
 };

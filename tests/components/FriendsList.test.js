@@ -10,6 +10,7 @@ jest.mock('../../src/api/friends', () => ({
   friendsApi: {
     getFriendsList: jest.fn(),
     removeFriend: jest.fn(),
+    reportUser: jest.fn(),
   }
 }));
 
@@ -354,14 +355,132 @@ describe('FriendsList', () => {
   });
 
   it('handles missing friend_id in keyExtractor', async () => {
-    const mockFriends = [{ friend_username: 'noIdUser' }]; 
+    const mockFriends = [{ friend_username: 'noIdUser' }];
     friendsApi.getFriendsList.mockResolvedValueOnce({ data: { data: mockFriends } });
-    
+
     const { getByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
-    
+
     await waitFor(() => {
       expect(getByText('noIdUser')).toBeTruthy();
     });
+  });
+
+  // ---------------------------------------------------------------------------
+  // H9: Denunciar usuario
+  // ---------------------------------------------------------------------------
+  const mockFriendForReport = { friend_id: 'friend-uuid-1', friend_username: 'usuarioDenunciado' };
+
+  const renderWithOneFriend = async () => {
+    friendsApi.getFriendsList.mockResolvedValueOnce({
+      data: { data: [mockFriendForReport], pagination: { page: 1, totalPages: 1 } },
+    });
+    const utils = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
+    await waitFor(() => expect(utils.getByText('usuarioDenunciado')).toBeTruthy());
+    return utils;
+  };
+
+  it('H9: renderiza el botón Denunciar para cada amigo', async () => {
+    const { getByText } = await renderWithOneFriend();
+    expect(getByText('Denunciar')).toBeTruthy();
+  });
+
+  it('H9: presionar Denunciar abre el Modal con los motivos disponibles', async () => {
+    const { getByText } = await renderWithOneFriend();
+
+    fireEvent.press(getByText('Denunciar'));
+
+    await waitFor(() => {
+      expect(getByText('Denunciar a @usuarioDenunciado')).toBeTruthy();
+      expect(getByText('Acoso')).toBeTruthy();
+      expect(getByText('Spam')).toBeTruthy();
+      expect(getByText('Comportamiento inapropiado')).toBeTruthy();
+      expect(getByText('Contenido ofensivo')).toBeTruthy();
+      expect(getByText('Suplantación de identidad')).toBeTruthy();
+      expect(getByText('Otro')).toBeTruthy();
+    });
+  });
+
+  it('H9: seleccionar un motivo llama a friendsApi.reportUser con id y motivo correctos', async () => {
+    friendsApi.reportUser.mockResolvedValueOnce({ data: { message: 'Reporte enviado' } });
+    const { getByText } = await renderWithOneFriend();
+
+    fireEvent.press(getByText('Denunciar'));
+    await waitFor(() => expect(getByText('Acoso')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(getByText('Acoso'));
+    });
+
+    expect(friendsApi.reportUser).toHaveBeenCalledWith('friend-uuid-1', 'acoso');
+  });
+
+  it('H9: reporte exitoso muestra Alert de confirmación', async () => {
+    friendsApi.reportUser.mockResolvedValueOnce({ data: { message: 'Reporte enviado' } });
+    const { getByText } = await renderWithOneFriend();
+
+    fireEvent.press(getByText('Denunciar'));
+    await waitFor(() => expect(getByText('Spam')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(getByText('Spam'));
+    });
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Reporte enviado',
+        expect.stringContaining('moderación')
+      );
+    });
+  });
+
+  it('H9: error 429 muestra mensaje específico de ya reportaste', async () => {
+    const err = Object.assign(new Error('Too Many Requests'), { response: { status: 429 } });
+    friendsApi.reportUser.mockRejectedValueOnce(err);
+    const { getByText } = await renderWithOneFriend();
+
+    fireEvent.press(getByText('Denunciar'));
+    await waitFor(() => expect(getByText('Acoso')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(getByText('Acoso'));
+    });
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Ya reportaste a este usuario',
+        expect.stringContaining('una vez por día')
+      );
+    });
+  });
+
+  it('H9: error genérico muestra Alert de error genérico', async () => {
+    friendsApi.reportUser.mockRejectedValueOnce(new Error('Network error'));
+    const { getByText } = await renderWithOneFriend();
+
+    fireEvent.press(getByText('Denunciar'));
+    await waitFor(() => expect(getByText('Spam')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(getByText('Spam'));
+    });
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith('Error', expect.stringContaining('No se pudo enviar'));
+    });
+  });
+
+  it('H9: cancelar cierra el Modal sin llamar a reportUser', async () => {
+    const { getByText, queryByText } = await renderWithOneFriend();
+
+    fireEvent.press(getByText('Denunciar'));
+    await waitFor(() => expect(getByText('Cancelar')).toBeTruthy());
+
+    fireEvent.press(getByText('Cancelar'));
+
+    await waitFor(() => {
+      expect(queryByText('Denunciar a @usuarioDenunciado')).toBeNull();
+    });
+    expect(friendsApi.reportUser).not.toHaveBeenCalled();
   });
 
   it('does not load more if hasMore is false', async () => {

@@ -51,7 +51,7 @@ describe('friendsApi', () => {
 
   it('uses default parameters in getPendingRequests and getFriendsList', async () => {
     apiClient.get.mockResolvedValue({ data: [] });
-    
+
     // Call without page
     await friendsApi.getPendingRequests();
     expect(apiClient.get).toHaveBeenLastCalledWith('/friends/pending', { params: { page: 1 } });
@@ -59,5 +59,19 @@ describe('friendsApi', () => {
     // Call without arguments
     await friendsApi.getFriendsList();
     expect(apiClient.get).toHaveBeenLastCalledWith('/friends', { params: { sortBy: 'alphabetical', page: 1 } });
+  });
+
+  // H9: reportUser
+  it('reportUser calls post /friends/report with reportedId and reason', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { message: 'Reporte enviado' } });
+    const result = await friendsApi.reportUser('user-uuid-1', 'acoso');
+    expect(apiClient.post).toHaveBeenCalledWith('/friends/report', { reportedId: 'user-uuid-1', reason: 'acoso' });
+    expect(result.data.message).toBe('Reporte enviado');
+  });
+
+  it('reportUser forwards errors from apiClient', async () => {
+    const error = Object.assign(new Error('Too Many Requests'), { response: { status: 429 } });
+    apiClient.post.mockRejectedValueOnce(error);
+    await expect(friendsApi.reportUser('user-uuid-1', 'spam')).rejects.toMatchObject({ response: { status: 429 } });
   });
 });

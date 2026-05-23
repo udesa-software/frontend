@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, Modal, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import { AppButton } from './AppButton';
 import { colors, spacing, fontSizes, radii } from '../theme';
@@ -14,6 +14,8 @@ export function FriendsList({ onGoToSearch }) {
   const [hasMore, setHasMore] = useState(true);
   const [sortBy, setSortBy] = useState('alphabetical'); // 'alphabetical' | 'proximity'
   const [removingId, setRemovingId] = useState(null);
+  const [reportTarget, setReportTarget] = useState(null); // { id, username }
+  const [reportingId, setReportingId] = useState(null);
 
   const fetchFriends = useCallback(async (pageNum, sortParam, isRefresh = false) => {
     if (loading || (!hasMore && !isRefresh)) return;
@@ -110,6 +112,38 @@ export function FriendsList({ onGoToSearch }) {
       fetchFriends(page + 1, sortBy);
     }
   };
+  const REPORT_REASONS = [
+    { key: 'comportamiento_inapropiado', label: 'Comportamiento inapropiado' },
+    { key: 'spam', label: 'Spam' },
+    { key: 'acoso', label: 'Acoso' },
+    { key: 'contenido_ofensivo', label: 'Contenido ofensivo' },
+    { key: 'suplantacion_identidad', label: 'Suplantación de identidad' },
+    { key: 'otro', label: 'Otro' },
+  ];
+
+  const handleReportUser = (friendId, username) => {
+    setReportTarget({ id: friendId, username });
+  };
+
+  const handleConfirmReport = async (reason) => {
+    if (!reportTarget) return;
+    setReportingId(reportTarget.id);
+    setReportTarget(null);
+    try {
+      await friendsApi.reportUser(reportTarget.id, reason);
+      Alert.alert('Reporte enviado', 'Tu denuncia fue registrada y será revisada por el equipo de moderación.');
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 429) {
+        Alert.alert('Ya reportaste a este usuario', 'Solo podés reportar a la misma persona una vez por día.');
+      } else {
+        Alert.alert('Error', 'No se pudo enviar el reporte. Intentá de nuevo más tarde.');
+      }
+    } finally {
+      setReportingId(null);
+    }
+  };
+
   const handleRemoveFriend = (friendId, username) => {
     Alert.alert(
       'Eliminar Amigo',
@@ -175,20 +209,57 @@ export function FriendsList({ onGoToSearch }) {
             </View>
           )}
         </View>
-        <AppButton 
-          title="Eliminar"
-          variant="danger"
-          style={styles.removeButton}
-          textStyle={styles.removeButtonText}
-          isLoading={removingId === item.friend_id}
-          onPress={() => handleRemoveFriend(item.friend_id, item.friend_username)}
-        />
+        <View style={styles.cardActions}>
+          <AppButton
+            title="Eliminar"
+            variant="danger"
+            style={styles.removeButton}
+            textStyle={styles.removeButtonText}
+            isLoading={removingId === item.friend_id}
+            onPress={() => handleRemoveFriend(item.friend_id, item.friend_username)}
+          />
+          <AppButton
+            title="Denunciar"
+            variant="secondary"
+            style={styles.reportButton}
+            textStyle={styles.reportButtonText}
+            isLoading={reportingId === item.friend_id}
+            onPress={() => handleReportUser(item.friend_id, item.friend_username)}
+          />
+        </View>
       </View>
     </View>
   );
 
   return (
     <View style={styles.container}>
+      {/* H9: Modal de selección de motivo de denuncia */}
+      <Modal
+        visible={!!reportTarget}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReportTarget(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Denunciar a @{reportTarget?.username}</Text>
+            <Text style={styles.modalSubtitle}>Seleccioná el motivo de la denuncia:</Text>
+            {REPORT_REASONS.map(({ key, label }) => (
+              <TouchableOpacity
+                key={key}
+                style={styles.reasonOption}
+                onPress={() => handleConfirmReport(key)}
+              >
+                <Text style={styles.reasonText}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.cancelOption} onPress={() => setReportTarget(null)}>
+              <Text style={styles.cancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {renderSortToggle()}
       <FlatList
         testID="friends-list"
@@ -323,6 +394,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSizes.xs,
   },
+  cardActions: {
+    flexDirection: 'column',
+    gap: 4,
+  },
   removeButton: {
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
@@ -332,6 +407,58 @@ const styles = StyleSheet.create({
   },
   removeButtonText: {
     fontSize: fontSizes.sm,
+  },
+  reportButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    marginVertical: 0,
+    minHeight: 32,
+    borderRadius: radii.sm,
+  },
+  reportButtonText: {
+    fontSize: fontSizes.sm,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  modalTitle: {
+    color: colors.text,
+    fontWeight: 'bold',
+    fontSize: fontSizes.lg,
+    marginBottom: spacing.xs,
+  },
+  modalSubtitle: {
+    color: colors.textMuted,
+    fontSize: fontSizes.sm,
+    marginBottom: spacing.md,
+  },
+  reasonOption: {
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  reasonText: {
+    color: colors.text,
+    fontSize: fontSizes.md,
+  },
+  cancelOption: {
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  cancelText: {
+    color: colors.textMuted,
+    fontSize: fontSizes.md,
+    fontWeight: '600',
   },
 
   emptyContainer: {
