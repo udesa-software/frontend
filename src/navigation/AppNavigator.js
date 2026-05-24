@@ -17,7 +17,7 @@ import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { MapScreen } from '../screens/MapScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
-import { FriendProfileScreen } from '../screens/FriendProfileScreen';
+import { UserProfileScreen } from '../screens/UserProfileScreen';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { colors, spacing } from '../theme';
 import { usersApi } from '../api/users';
@@ -140,8 +140,8 @@ function Navigator() {
               component={NotificationsScreen}
             />
             <Stack.Screen
-              name="FriendProfile"
-              component={FriendProfileScreen}
+              name="UserProfile"
+              component={UserProfileScreen}
             />
           </Stack.Group>
         ) : (

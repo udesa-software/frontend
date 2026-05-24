@@ -24,4 +24,8 @@ export const friendsApi = {
   // GET /api/friends
   getFriendsList: (sortBy = 'alphabetical', page = 1) =>
     apiClient.get('/friends', { params: { sortBy, page } }),
+
+  // GET /api/friends/status/:userId — estado de relación con otro usuario
+  getRelationshipStatus: (userId) =>
+    apiClient.get(`/friends/status/${userId}`),
 };

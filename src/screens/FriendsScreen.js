@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, ScrollView } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
 import { PendingRequestsList } from '../components/PendingRequestsList';
@@ -12,6 +12,7 @@ import { friendsApi } from '../api/friends';
 
 export function FriendsScreen() {
   const route = useRoute();
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('friends'); // 'friends' | 'search' | 'pending'
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -66,7 +67,11 @@ export function FriendsScreen() {
     const isSent = sentRequestIds.has(item.id);
 
     return (
-      <View style={styles.userCard}>
+      <TouchableOpacity 
+        style={styles.userCard}
+        onPress={() => navigation.navigate('UserProfile', { userId: item.id, username: item.username })}
+        activeOpacity={0.7}
+      >
         <View style={styles.userInfo}>
            <View style={styles.avatarPlaceholder}>
              <Text style={styles.avatarText}>{item.username.charAt(0).toUpperCase()}</Text>
@@ -84,7 +89,7 @@ export function FriendsScreen() {
           style={styles.addButton}
           textStyle={{ fontSize: fontSizes.sm }}
         />
-      </View>
+      </TouchableOpacity>
     );
   };
 

@@ -6,14 +6,17 @@ import {
   FlatList,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import * as Location from 'expo-location';
+import { useNavigation } from '@react-navigation/native';
 import { AppButton } from './AppButton';
 import { colors, spacing, fontSizes, radii } from '../theme';
 import { getRadar } from '../api/location';
 import { friendsApi } from '../api/friends';
 
 export function NearbyUsersList() {
+  const navigation = useNavigation();
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionsLoading, setActionsLoading] = useState({});
@@ -75,7 +78,11 @@ export function NearbyUsersList() {
     const isSent = sentRequestIds.has(item.userId);
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity 
+        style={styles.card}
+        onPress={() => navigation.navigate('UserProfile', { userId: item.userId, username: item.username })}
+        activeOpacity={0.7}
+      >
         <View style={styles.userInfo}>
           <View style={styles.avatarPlaceholder}>
             <Text style={styles.avatarText}>
@@ -98,7 +105,7 @@ export function NearbyUsersList() {
           style={styles.addButton}
           textStyle={{ fontSize: fontSizes.sm }}
         />
-      </View>
+      </TouchableOpacity>
     );
   };
 

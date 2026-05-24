@@ -162,8 +162,8 @@ export function FriendsList({ onGoToSearch }) {
       <TouchableOpacity
         testID={`friend-card-${item.friend_id}`}
         style={styles.userInfo}
-        onPress={() => navigation.navigate('FriendProfile', {
-          friendId: item.friend_id,
+        onPress={() => navigation.navigate('UserProfile', {
+          userId: item.friend_id,
           username: item.friend_username,
         })}
         activeOpacity={0.7}
