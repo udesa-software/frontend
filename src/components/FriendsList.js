@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { AppButton } from './AppButton';
 import { colors, spacing, fontSizes, radii } from '../theme';
@@ -7,6 +8,7 @@ import { friendsApi } from '../api/friends';
 import { getFriendsLocations } from '../api/location';
 
 export function FriendsList({ onGoToSearch }) {
+  const navigation = useNavigation();
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -156,7 +158,16 @@ export function FriendsList({ onGoToSearch }) {
 
   const renderItem = ({ item }) => (
     <View style={styles.card}>
-      <View style={styles.userInfo}>
+      {/* Sección izquierda: toca para ver el perfil del amigo */}
+      <TouchableOpacity
+        testID={`friend-card-${item.friend_id}`}
+        style={styles.userInfo}
+        onPress={() => navigation.navigate('FriendProfile', {
+          friendId: item.friend_id,
+          username: item.friend_username,
+        })}
+        activeOpacity={0.7}
+      >
         {/* Avatar con indicador de presencia online (H10 CA.2) */}
         <View style={styles.avatarWrapper}>
           <View style={styles.avatar}>
@@ -165,9 +176,9 @@ export function FriendsList({ onGoToSearch }) {
             </Text>
           </View>
           {/* CA.2: punto verde si online, gris si offline */}
-          <View 
+          <View
             testID={`online-dot-${item.friend_id}`}
-            style={[styles.onlineDot, item.is_online ? styles.onlineDotOnline : styles.onlineDotOffline]} 
+            style={[styles.onlineDot, item.is_online ? styles.onlineDotOnline : styles.onlineDotOffline]}
           />
         </View>
         <View style={styles.details}>
@@ -183,15 +194,16 @@ export function FriendsList({ onGoToSearch }) {
             </View>
           )}
         </View>
-        <AppButton 
-          title="Eliminar"
-          variant="danger"
-          style={styles.removeButton}
-          textStyle={styles.removeButtonText}
-          isLoading={removingId === item.friend_id}
-          onPress={() => handleRemoveFriend(item.friend_id, item.friend_username)}
-        />
-      </View>
+      </TouchableOpacity>
+      {/* Botón eliminar separado para no interferir con la navegación */}
+      <AppButton
+        title="Eliminar"
+        variant="danger"
+        style={styles.removeButton}
+        textStyle={styles.removeButtonText}
+        isLoading={removingId === item.friend_id}
+        onPress={() => handleRemoveFriend(item.friend_id, item.friend_username)}
+      />
     </View>
   );
 
