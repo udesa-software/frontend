@@ -20,7 +20,7 @@ export function NearbyUsersList() {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionsLoading, setActionsLoading] = useState({});
-  const [sentRequestIds, setSentRequestIds] = useState(new Set());
+  const [relationshipStatuses, setRelationshipStatuses] = useState({});
 
   const fetchNearby = useCallback(async () => {
     setIsLoading(true);
@@ -42,7 +42,19 @@ export function NearbyUsersList() {
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude
       });
-      setUsers(response.users || []);
+      const fetchedUsers = response.users || [];
+      if (fetchedUsers.length > 0) {
+        try {
+          const ids = fetchedUsers.map(u => u.userId);
+          const statusesRes = await friendsApi.getRelationshipStatuses(ids);
+          setRelationshipStatuses(statusesRes.data || {});
+        } catch (e) {
+          console.error("Error fetching statuses:", e);
+        }
+      } else {
+        setRelationshipStatuses({});
+      }
+      setUsers(fetchedUsers);
     } catch (err) {
       console.error('Error en radar de descubrimiento:', err);
       const msg =
@@ -59,14 +71,27 @@ export function NearbyUsersList() {
     fetchNearby();
   }, [fetchNearby]);
 
-  const handleSendRequest = async (user) => {
+  const handleAction = async (user) => {
+    const status = relationshipStatuses[user.userId] || 'none';
+    if (status === 'self' || status === 'blocked') return;
+
     setActionsLoading((prev) => ({ ...prev, [user.userId]: true }));
     try {
-      await friendsApi.sendRequest(user.userId);
-      setSentRequestIds((prev) => new Set(prev).add(user.userId));
+      if (status === 'none') {
+        await friendsApi.sendRequest(user.userId);
+        setRelationshipStatuses(prev => ({ ...prev, [user.userId]: 'pending_sent' }));
+      } else if (status === 'friends') {
+        await friendsApi.removeFriend(user.userId);
+        setRelationshipStatuses(prev => ({ ...prev, [user.userId]: 'none' }));
+      } else if (status === 'pending_sent') {
+        await friendsApi.cancelRequest(user.userId);
+        setRelationshipStatuses(prev => ({ ...prev, [user.userId]: 'none' }));
+      } else if (status === 'pending_received') {
+        await friendsApi.acceptRequest(user.userId);
+        setRelationshipStatuses(prev => ({ ...prev, [user.userId]: 'friends' }));
+      }
     } catch (err) {
-      const msg =
-        err.response?.data?.error || err.message || 'Error al enviar solicitud';
+      const msg = err.response?.data?.error || err.message || 'Error en la acción';
       Alert.alert('Error', msg);
     } finally {
       setActionsLoading((prev) => ({ ...prev, [user.userId]: false }));
@@ -75,7 +100,45 @@ export function NearbyUsersList() {
 
   const renderItem = ({ item }) => {
     const isActionLoading = actionsLoading[item.userId] || false;
-    const isSent = sentRequestIds.has(item.userId);
+    const status = relationshipStatuses[item.userId] || 'none';
+
+    if (status === 'self' || status === 'blocked') {
+      return (
+        <TouchableOpacity 
+          style={styles.card}
+          onPress={() => navigation.navigate('UserProfile', { userId: item.userId, username: item.username })}
+          activeOpacity={0.7}
+        >
+          <View style={styles.userInfo}>
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>
+                {(item.username || 'U').charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.userDetails}>
+              <Text style={styles.username}>{item.username}</Text>
+              <View style={styles.distancePill}>
+                <Text style={styles.distanceText}>📍 {item.distance}</Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    let btnTitle = 'Agregar';
+    let btnVariant = 'primary';
+
+    if (status === 'friends') {
+      btnTitle = 'Eliminar';
+      btnVariant = 'danger';
+    } else if (status === 'pending_sent') {
+      btnTitle = 'Pendiente';
+      btnVariant = 'secondary';
+    } else if (status === 'pending_received') {
+      btnTitle = 'Aceptar';
+      btnVariant = 'success';
+    }
 
     return (
       <TouchableOpacity 
@@ -97,11 +160,10 @@ export function NearbyUsersList() {
           </View>
         </View>
         <AppButton
-          title={isSent ? 'Pendiente' : 'Agregar'}
-          onPress={() => handleSendRequest(item)}
+          title={btnTitle}
+          onPress={() => handleAction(item)}
           isLoading={isActionLoading}
-          variant={isSent ? 'secondary' : 'primary'}
-          disabled={isSent}
+          variant={btnVariant}
           style={styles.addButton}
           textStyle={{ fontSize: fontSizes.sm }}
         />

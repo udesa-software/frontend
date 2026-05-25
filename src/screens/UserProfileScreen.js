@@ -155,6 +155,52 @@ export function UserProfileScreen() {
     }
   };
 
+  const handleCancel = async () => {
+    setActionLoading(true);
+    try {
+      await friendsApi.cancelRequest(userId);
+      setRelationship({ status: 'none' });
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo cancelar la solicitud');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBlock = () => {
+    const name = profile?.username || initialUsername || 'este usuario';
+    Alert.alert(
+      'Bloquear usuario',
+      `¿Estás seguro de que querés bloquear a ${name}? No podrá enviarte solicitudes ni ver tu actividad.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Bloquear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await friendsApi.blockUser(userId, name);
+              Alert.alert('Bloqueado', `${name} ha sido bloqueado.`);
+              setRelationship({ status: 'blocked' });
+            } catch (err) {
+              Alert.alert('Error', err.response?.data?.error || 'No se pudo bloquear al usuario');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleUnblock = async () => {
+    try {
+      await friendsApi.unblockUser(userId);
+      Alert.alert('Desbloqueado', 'El usuario ha sido desbloqueado.');
+      setRelationship({ status: 'none' });
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'No se pudo desbloquear al usuario');
+    }
+  };
+
   // ── Render botones de acción ──────────────────────────────────────────────
   const renderActionButtons = () => {
     if (!relationship || relationship.status === 'self') return null;
@@ -195,9 +241,17 @@ export function UserProfileScreen() {
 
     if (status === 'pending_sent') {
       return (
-        <View testID="action-pending" style={[styles.actionBtn, styles.btnMuted]}>
-          <Text style={[styles.actionBtnText, { color: colors.textMuted }]}>Solicitud pendiente</Text>
-        </View>
+        <TouchableOpacity
+          testID="action-cancel"
+          style={[styles.actionBtn, styles.btnMuted]}
+          onPress={handleCancel}
+          disabled={actionLoading}
+        >
+          {actionLoading
+            ? <ActivityIndicator size="small" color={colors.text} />
+            : <Text style={[styles.actionBtnText, { color: colors.textMuted }]}>Cancelar solicitud</Text>
+          }
+        </TouchableOpacity>
       );
     }
 
@@ -343,6 +397,21 @@ export function UserProfileScreen() {
                 <Text style={styles.privateIcon}>🔒</Text>
                 <Text style={styles.privateText}>Hacete amigo para ver el historial de lugares</Text>
               </View>
+            </View>
+          )}
+
+          {/* Bloquear / Desbloquear usuario */}
+          {relationship?.status !== 'self' && (
+            <View style={styles.section}>
+              {relationship?.status === 'blocked' ? (
+                <TouchableOpacity style={styles.blockBtn} onPress={handleUnblock}>
+                  <Text style={styles.blockBtnText}>Desbloquear usuario</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.blockBtn} onPress={handleBlock}>
+                  <Text style={styles.blockBtnText}>Bloquear usuario</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -511,4 +580,16 @@ const styles = StyleSheet.create({
   },
   locationLabel: { color: colors.text, fontSize: fontSizes.sm, fontWeight: '500', marginBottom: 2 },
   locationTime:  { color: colors.textMuted, fontSize: fontSizes.xs },
+
+  blockBtn: {
+    padding: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
+  blockBtnText: {
+    color: '#ef4444', // Red-500
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
 });
