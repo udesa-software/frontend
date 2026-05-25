@@ -17,6 +17,10 @@ jest.mock('../../src/api/location', () => ({
 jest.mock('../../src/api/friends', () => ({
   friendsApi: {
     sendRequest: jest.fn(),
+    getRelationshipStatuses: jest.fn(),
+    removeFriend: jest.fn(),
+    cancelRequest: jest.fn(),
+    acceptRequest: jest.fn(),
   },
 }));
 
@@ -39,6 +43,7 @@ const grantedLocation = () => {
 describe('NearbyUsersList', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    friendsApi.getRelationshipStatuses.mockResolvedValue({ data: {} });
   });
 
   it('calls getRadar on mount and shows loading state', async () => {
@@ -162,6 +167,9 @@ describe('NearbyUsersList', () => {
     getRadar.mockResolvedValueOnce({
       users: [{ userId: 'u1', username: 'alice', distance: '1.2 km', distanceMeters: 1200 }],
     });
+    friendsApi.getRelationshipStatuses.mockResolvedValueOnce({
+      data: { 'u1': 'none' },
+    });
     friendsApi.sendRequest.mockResolvedValueOnce({ data: { message: 'Ok' } });
 
     const { findByText, getByText, queryByText } = render(<NearbyUsersList />);
@@ -181,6 +189,9 @@ describe('NearbyUsersList', () => {
     grantedLocation();
     getRadar.mockResolvedValueOnce({
       users: [{ userId: 'u2', username: 'bob', distance: '500 m', distanceMeters: 500 }],
+    });
+    friendsApi.getRelationshipStatuses.mockResolvedValueOnce({
+      data: { 'u2': 'none' },
     });
     const apiErr = new Error('err');
     apiErr.response = { data: { error: 'Ya enviaste solicitud' } };
@@ -205,6 +216,9 @@ describe('NearbyUsersList', () => {
     getRadar.mockResolvedValueOnce({
       users: [{ userId: 'u3', username: 'carol', distance: '300 m', distanceMeters: 300 }],
     });
+    friendsApi.getRelationshipStatuses.mockResolvedValueOnce({
+      data: { 'u3': 'none' },
+    });
     friendsApi.sendRequest.mockRejectedValueOnce(new Error('Send failed'));
 
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
@@ -216,6 +230,61 @@ describe('NearbyUsersList', () => {
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('Error', 'Send failed');
     });
+  });
+
+  it('handles other status actions: friends, pending_received, and pending_sent', async () => {
+    grantedLocation();
+    getRadar.mockResolvedValueOnce({
+      users: [
+        { userId: 'u1', username: 'amigo', distance: '1km' },
+        { userId: 'u2', username: 'recibido', distance: '1km' },
+        { userId: 'u3', username: 'enviado', distance: '1km' }
+      ],
+    });
+    friendsApi.getRelationshipStatuses.mockResolvedValueOnce({
+      data: { 'u1': 'friends', 'u2': 'pending_received', 'u3': 'pending_sent' },
+    });
+
+    const { findByText, getByText } = render(<NearbyUsersList />);
+
+    await findByText('amigo');
+    await findByText('recibido');
+    await findByText('enviado');
+
+    // Remove friend
+    friendsApi.removeFriend.mockResolvedValueOnce({ data: {} });
+    fireEvent.press(getByText('Eliminar'));
+    await waitFor(() => expect(friendsApi.removeFriend).toHaveBeenCalledWith('u1'));
+
+    // Accept request
+    friendsApi.acceptRequest.mockResolvedValueOnce({ data: {} });
+    fireEvent.press(getByText('Aceptar'));
+    await waitFor(() => expect(friendsApi.acceptRequest).toHaveBeenCalledWith('u2'));
+
+    // Cancel request
+    friendsApi.cancelRequest.mockResolvedValueOnce({ data: {} });
+    fireEvent.press(getByText('Pendiente'));
+    await waitFor(() => expect(friendsApi.cancelRequest).toHaveBeenCalledWith('u3'));
+  });
+
+  it('does not render actions for self or blocked status', async () => {
+    grantedLocation();
+    getRadar.mockResolvedValueOnce({
+      users: [
+        { userId: 'u1', username: 'selfuser', distance: '1km' },
+        { userId: 'u2', username: 'blockeduser', distance: '1km' }
+      ],
+    });
+    friendsApi.getRelationshipStatuses.mockResolvedValueOnce({
+      data: { 'u1': 'self', 'u2': 'blocked' },
+    });
+
+    const { findByText, queryByText } = render(<NearbyUsersList />);
+
+    await findByText('selfuser');
+    await findByText('blockeduser');
+
+    expect(queryByText('Agregar')).toBeNull();
   });
 
   it('renders avatar initial as uppercase first letter of username', async () => {

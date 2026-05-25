@@ -180,6 +180,7 @@ export function NotificationsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            testID={`delete-button-${item.id}`}
             style={styles.deleteButton}
             onPress={() => handleDeleteNotification(item.id)}
             activeOpacity={0.7}
@@ -223,6 +224,7 @@ export function NotificationsScreen() {
       {/* Custom Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity
+          testID="back-button"
           style={styles.backButton}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
@@ -233,6 +235,7 @@ export function NotificationsScreen() {
         <Text style={styles.headerTitle}>Notificaciones</Text>
 
         <TouchableOpacity
+          testID="mark-all-read-button"
           style={styles.readAllButton}
           onPress={handleMarkAllAsRead}
           activeOpacity={0.7}
