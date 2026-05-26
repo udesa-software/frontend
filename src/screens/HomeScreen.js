@@ -49,12 +49,13 @@ export function HomeScreen() {
         </View>
 
         <TouchableOpacity 
+          testID="bell-button"
           style={styles.bellButton}
           onPress={() => navigation.navigate('Notifications')}
           activeOpacity={0.7}
         >
           <Ionicons name="notifications-outline" size={24} color={colors.text} />
-          {hasUnread && <View style={styles.badge} />}
+          {hasUnread && <View testID="unread-badge" style={styles.badge} />}
         </TouchableOpacity>
       </View>
 
