@@ -28,4 +28,8 @@ export const usersApi = {
   // Se llama cada ~60s en background mientras la app está en uso.
   heartbeat: () =>
     apiClient.post('/users/heartbeat'),
+
+  // Perfil público de cualquier usuario (username, biography, is_online)
+  getUserPublicProfile: (userId) =>
+    apiClient.get(`/users/${userId}/profile`),
 };
