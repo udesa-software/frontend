@@ -1,14 +1,122 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Modal, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
 import { colors, spacing, fontSizes, radii } from '../theme';
+import * as ImagePicker from 'expo-image-picker';
+import { getImageUrl } from '../api/client';
 
 export function ProfileScreen() {
-  const { user, logout, deleteAccount, updateProfile } = useAuth();
+  const { user, logout, deleteAccount, updateProfile, uploadProfilePhoto, deleteProfilePhoto } = useAuth();
   const navigation = useNavigation();
+
+  const handleSelectAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso Denegado', 'Se necesita acceso a la galería para poder subir una foto de perfil.');
+      return;
+    }
+
+    const options = [
+      { text: 'Elegir de la galería', onPress: pickImage },
+      { text: 'Tomar foto (Cámara)', onPress: takePhoto }
+    ];
+
+    if (user.profile_photo_url) {
+      options.push({
+        text: 'Eliminar foto actual',
+        style: 'destructive',
+        onPress: handleDeleteProfilePhoto
+      });
+    }
+
+    options.push({ text: 'Cancelar', style: 'cancel' });
+
+    Alert.alert('Foto de Perfil', '¿Qué te gustaría hacer?', options);
+  };
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await uploadImage(result.assets[0].uri);
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'No se pudo seleccionar la imagen');
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permiso Denegado', 'Se necesita acceso a la cámara para tomar fotos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await uploadImage(result.assets[0].uri);
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'No se pudo tomar la foto');
+    }
+  };
+
+  const uploadImage = async (uri) => {
+    try {
+      setIsSaving(true);
+
+      const filename = uri.split('/').pop();
+      const match = /\.(\w+)$/.exec(filename);
+      const ext = match ? match[1].toLowerCase() : '';
+      const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+
+      if (ext !== 'png' && ext !== 'jpg' && ext !== 'jpeg') {
+        Alert.alert('Formato Inválido', 'El sistema solo acepta formatos válidos de imagen (JPG, PNG).');
+        return;
+      }
+
+      // FormData con fetch nativo (ver users.js) — evita el problema de
+      // boundary que tenía axios al setear Content-Type manualmente.
+      const formData = new FormData();
+      formData.append('profilePhoto', { uri, name: filename, type: mimeType });
+
+      await uploadProfilePhoto(formData);
+      Alert.alert('Éxito', 'Foto de perfil actualizada correctamente.');
+    } catch (err) {
+      const errMsg = err?.message || 'Error al subir foto.';
+      Alert.alert('Error al subir foto', errMsg);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteProfilePhoto = async () => {
+    try {
+      setIsSaving(true);
+      await deleteProfilePhoto();
+      Alert.alert('Éxito', 'Foto de perfil eliminada correctamente.');
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Error al eliminar foto.';
+      Alert.alert('Error', errMsg);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   
   // Estados para el Modal de Edición
@@ -88,19 +196,43 @@ export function ProfileScreen() {
           <Text style={{ fontSize: 24 }}>⚙️</Text>
         </TouchableOpacity>
 
-        <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarText}>{user.username?.charAt(0).toUpperCase()}</Text>
-        </View>
+        <TouchableOpacity style={styles.avatarContainer} onPress={handleSelectAvatar} disabled={isSaving}>
+          {user.profile_photo_url ? (
+            <Image 
+              source={{ uri: getImageUrl(user.profile_photo_url) }} 
+              style={styles.avatarImage} 
+              testID="profile-photo"
+            />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>{user.username?.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+          <View style={styles.avatarEditOverlay}>
+            <Text style={styles.avatarEditOverlayText}>Editar</Text>
+          </View>
+        </TouchableOpacity>
         <Text style={styles.username}>{user.username}</Text>
         <Text style={styles.email}>{user.email}</Text>
         {user.biography ? <Text style={styles.bio}>{user.biography}</Text> : null}
         
-        <AppButton
-          title="Editar Perfil"
-          variant="secondary"
-          onPress={openEditModal}
-          style={styles.editBtn}
-        />
+        <View style={styles.actionRow}>
+          <AppButton
+            title="Editar Perfil"
+            variant="secondary"
+            onPress={openEditModal}
+            style={styles.editBtn}
+          />
+          {user.profile_photo_url ? (
+            <AppButton
+              title="Eliminar Foto"
+              variant="secondary"
+              onPress={handleDeleteProfilePhoto}
+              style={[styles.editBtn, styles.deleteAvatarBtn]}
+              textStyle={{ color: colors.error }}
+            />
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -298,6 +430,45 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xxl,
     color: colors.text,
     fontWeight: 'bold',
+  },
+  avatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    overflow: 'hidden',
+    position: 'relative',
+    marginBottom: spacing.md,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
+  },
+  avatarEditOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 24,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarEditOverlayText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+  },
+  deleteAvatarBtn: {
+    marginLeft: spacing.sm,
+    borderColor: colors.error,
+    borderWidth: 1,
   },
   username: {
     fontSize: fontSizes.xl,
