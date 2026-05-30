@@ -13,8 +13,11 @@ export function ProfileScreen() {
   const navigation = useNavigation();
 
   const handleSelectProfilePhoto = async () => {
+    console.log('handleSelectProfilePhoto CALLED');
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    console.log('STATUS:', status);
     if (status !== 'granted') {
+      console.log('NOT GRANTED, SHOWING ALERT');
       Alert.alert('Permiso Denegado', 'Se necesita acceso a la galería para poder subir una foto de perfil.');
       return;
     }
@@ -196,7 +199,7 @@ export function ProfileScreen() {
           <Text style={{ fontSize: 24 }}>⚙️</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.profilePhotoContainer} onPress={handleSelectProfilePhoto} disabled={isSaving}>
+        <TouchableOpacity testID="profile-photo-container" style={styles.profilePhotoContainer} onPress={handleSelectProfilePhoto} disabled={isSaving}>
           {user.profile_photo_url ? (
             <Image 
               source={{ uri: getImageUrl(user.profile_photo_url) }} 
