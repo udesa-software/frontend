@@ -12,7 +12,7 @@ export function ProfileScreen() {
   const { user, logout, deleteAccount, updateProfile, uploadProfilePhoto, deleteProfilePhoto } = useAuth();
   const navigation = useNavigation();
 
-  const handleSelectAvatar = async () => {
+  const handleSelectProfilePhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permiso Denegado', 'Se necesita acceso a la galería para poder subir una foto de perfil.');
@@ -196,20 +196,20 @@ export function ProfileScreen() {
           <Text style={{ fontSize: 24 }}>⚙️</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.avatarContainer} onPress={handleSelectAvatar} disabled={isSaving}>
+        <TouchableOpacity style={styles.profilePhotoContainer} onPress={handleSelectProfilePhoto} disabled={isSaving}>
           {user.profile_photo_url ? (
             <Image 
               source={{ uri: getImageUrl(user.profile_photo_url) }} 
-              style={styles.avatarImage} 
+              style={styles.profilePhotoImage} 
               testID="profile-photo"
             />
           ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>{user.username?.charAt(0).toUpperCase()}</Text>
+            <View style={styles.profilePhotoPlaceholder}>
+              <Text style={styles.profilePhotoText}>{user.username?.charAt(0).toUpperCase()}</Text>
             </View>
           )}
-          <View style={styles.avatarEditOverlay}>
-            <Text style={styles.avatarEditOverlayText}>Editar</Text>
+          <View style={styles.profilePhotoEditOverlay}>
+            <Text style={styles.profilePhotoEditOverlayText}>Editar</Text>
           </View>
         </TouchableOpacity>
         <Text style={styles.username}>{user.username}</Text>
@@ -228,7 +228,7 @@ export function ProfileScreen() {
               title="Eliminar Foto"
               variant="secondary"
               onPress={handleDeleteProfilePhoto}
-              style={[styles.editBtn, styles.deleteAvatarBtn]}
+              style={[styles.editBtn, styles.deleteProfilePhotoBtn]}
               textStyle={{ color: colors.error }}
             />
           ) : null}
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  avatarPlaceholder: {
+  profilePhotoPlaceholder: {
     width: 80,
     height: 80,
     borderRadius: 40,
@@ -426,12 +426,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
-  avatarText: {
+  profilePhotoText: {
     fontSize: fontSizes.xxl,
     color: colors.text,
     fontWeight: 'bold',
   },
-  avatarContainer: {
+  profilePhotoContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
@@ -439,12 +439,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginBottom: spacing.md,
   },
-  avatarImage: {
+  profilePhotoImage: {
     width: '100%',
     height: '100%',
     borderRadius: 40,
   },
-  avatarEditOverlay: {
+  profilePhotoEditOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarEditOverlayText: {
+  profilePhotoEditOverlayText: {
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.md,
   },
-  deleteAvatarBtn: {
+  deleteProfilePhotoBtn: {
     marginLeft: spacing.sm,
     borderColor: colors.error,
     borderWidth: 1,
