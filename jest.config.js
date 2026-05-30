@@ -8,6 +8,8 @@ module.exports = {
     '^expo-secure-store$': '<rootDir>/__mocks__/expo-secure-store.js',
     '^@react-native-async-storage/async-storage$': '<rootDir>/__mocks__/async-storage.js',
     '^expo-linking$': '<rootDir>/__mocks__/expo-linking.js',
+    '^@expo/vector-icons$': '<rootDir>/__mocks__/@expo/vector-icons.js',
+    '^@expo/vector-icons/(.*)$': '<rootDir>/__mocks__/@expo/vector-icons.js',
   },
   collectCoverage: true,
   collectCoverageFrom: [

@@ -60,4 +60,36 @@ describe('friendsApi', () => {
     await friendsApi.getFriendsList();
     expect(apiClient.get).toHaveBeenLastCalledWith('/friends', { params: { sortBy: 'alphabetical', page: 1 } });
   });
+
+  it('cancelRequest calls post /friends/cancel', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { success: true } });
+    await friendsApi.cancelRequest('user2');
+    expect(apiClient.post).toHaveBeenCalledWith('/friends/cancel', { addresseeId: 'user2' });
+  });
+
+  it('getRelationshipStatus calls get /friends/status/:userId', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { status: 'friends' } });
+    const res = await friendsApi.getRelationshipStatus('user3');
+    expect(apiClient.get).toHaveBeenCalledWith('/friends/status/user3');
+    expect(res.data.status).toBe('friends');
+  });
+
+  it('getRelationshipStatuses calls post /friends/status/batch', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { 'u1': 'friends', 'u2': 'none' } });
+    const res = await friendsApi.getRelationshipStatuses(['u1', 'u2']);
+    expect(apiClient.post).toHaveBeenCalledWith('/friends/status/batch', { userIds: ['u1', 'u2'] });
+    expect(res.data['u1']).toBe('friends');
+  });
+
+  it('blockUser calls post /friends/block', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { success: true } });
+    await friendsApi.blockUser('baduser', 'baduser_name');
+    expect(apiClient.post).toHaveBeenCalledWith('/friends/block', { blockedId: 'baduser', blockedUsername: 'baduser_name' });
+  });
+
+  it('unblockUser calls delete /friends/block/:blockedId', async () => {
+    apiClient.delete.mockResolvedValueOnce({ data: { success: true } });
+    await friendsApi.unblockUser('baduser');
+    expect(apiClient.delete).toHaveBeenCalledWith('/friends/block/baduser');
+  });
 });

@@ -60,4 +60,7 @@ export const usersApi = {
   // H12: Foto de perfil — borrado
   deleteProfilePhoto: () =>
     apiClient.delete('/users/profile-photo'),
+  // Perfil público de cualquier usuario (username, biography, is_online)
+  getUserPublicProfile: (userId) =>
+    apiClient.get(`/users/${userId}/profile`),
 };
