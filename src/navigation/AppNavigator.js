@@ -8,7 +8,7 @@ import * as Linking from 'expo-linking';
 import { useAuth, AuthProvider } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
-import { HomeScreen } from '../screens/HomeScreen';
+import { DiscoverScreen } from '../screens/DiscoverScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
@@ -65,10 +65,10 @@ function MainTabs() {
       }}
     >
       <Tab.Screen 
-        name="Inicio" 
-        component={HomeScreen} 
+        name="BioMatch" 
+        component={DiscoverScreen} 
         options={{
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🏠</Text>
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🔮</Text>
         }}
       />
       <Tab.Screen 
@@ -78,12 +78,18 @@ function MainTabs() {
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>👥</Text>
         }}
       />
-      {/* Tu pestaña de mapa migrada */}
       <Tab.Screen
         name="Mapa"
         component={MapScreen}
         options={{
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📍</Text>,
+        }}
+      />
+      <Tab.Screen 
+        name="Notificaciones" 
+        component={NotificationsScreen} 
+        options={{
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🔔</Text>
         }}
       />
       <Tab.Screen 
@@ -135,10 +141,7 @@ function Navigator() {
               name="ChangePassword"
               component={ChangePasswordScreen}
             />
-            <Stack.Screen
-              name="Notifications"
-              component={NotificationsScreen}
-            />
+
             <Stack.Screen
               name="UserProfile"
               component={UserProfileScreen}

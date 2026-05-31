@@ -11,13 +11,20 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { notificationsApi } from '../api/notifications';
 import { colors, spacing, fontSizes, radii } from '../theme';
 
 export function NotificationsScreen() {
   const navigation = useNavigation();
+  let route;
+  try {
+    route = useRoute();
+  } catch (e) {
+    route = { name: '' };
+  }
+  const isTab = route?.name === 'Notificaciones';
   const [notifications, setNotifications] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -223,14 +230,18 @@ export function NotificationsScreen() {
       
       {/* Custom Header Bar */}
       <View style={styles.header}>
-        <TouchableOpacity
-          testID="back-button"
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
+        {navigation && !isTab && (typeof navigation.canGoBack === 'function' ? navigation.canGoBack() : true) ? (
+          <TouchableOpacity
+            testID="back-button"
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
 
         <Text style={styles.headerTitle}>Notificaciones</Text>
 
