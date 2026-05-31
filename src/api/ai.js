@@ -55,8 +55,9 @@ export const aiApi = {
    * @returns {Promise<Array>} Lista de perfiles recomendados.
    */
   getRecommendations: async (currentUser) => {
-    // Verificar si se debe utilizar el mock local (por defecto true si está configurado así)
-    const useMock = process.env.EXPO_PUBLIC_USE_MOCK === 'true' || process.env.EXPO_PUBLIC_USE_MOCK === undefined;
+    // Usa mock SOLO si está explícitamente configurado como 'true'.
+    // Si la variable no existe o tiene cualquier otro valor, se usa el backend real.
+    const useMock = process.env.EXPO_PUBLIC_USE_MOCK === 'true';
 
     if (useMock) {
       // --- MOCK ---
