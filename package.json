@@ -20,6 +20,7 @@
     "expo": "^54.0.34",
     "expo-battery": "~10.0.8",
     "expo-device": "~8.0.10",
+    "expo-image-picker": "~17.0.11",
     "expo-linking": "~8.0.12",
     "expo-location": "~19.0.8",
     "expo-modules-core": "~3.0.30",

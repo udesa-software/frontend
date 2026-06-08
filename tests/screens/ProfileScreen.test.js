@@ -5,6 +5,8 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 const mockLogout = jest.fn();
 const mockDeleteAccount = jest.fn();
 const mockUpdateProfile = jest.fn();
+const mockUploadProfilePhoto = jest.fn();
+const mockDeleteProfilePhoto = jest.fn();
 
 // Default user (no biography)
 let mockUser = {
@@ -29,10 +31,20 @@ jest.mock('../../src/context/AuthContext', () => ({
     logout: mockLogout,
     deleteAccount: mockDeleteAccount,
     updateProfile: mockUpdateProfile,
+    uploadProfilePhoto: mockUploadProfilePhoto,
+    deleteProfilePhoto: mockDeleteProfilePhoto,
   }),
 }));
 
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: jest.fn(),
+  launchImageLibraryAsync: jest.fn(),
+  MediaTypeOptions: { Images: 'Images' },
+}));
+
+import * as ImagePicker from 'expo-image-picker';
 import { ProfileScreen } from '../../src/screens/ProfileScreen';
+import { Alert } from 'react-native';
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 describe('ProfileScreen', () => {
@@ -263,5 +275,68 @@ describe('ProfileScreen', () => {
     });
     
     expect(await findByText('Generic error message')).toBeTruthy();
+  });
+
+  describe('Profile Photo operations', () => {
+    beforeEach(() => {
+      jest.spyOn(Alert, 'alert').mockImplementation((title, msg, buttons) => {
+        console.log('ALERT CALLED:', title, msg, buttons);
+        if (buttons && buttons.length > 0) {
+          const btn = buttons.find(b => b.text === 'Elegir de la galería');
+          if (btn && btn.onPress) {
+            console.log('CALLING ONPRESS');
+            btn.onPress();
+          }
+        }
+      });
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('shows permission denied alert if camera roll permission is rejected', async () => {
+      ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ status: 'denied' });
+      
+      const { getByTestId } = render(<ProfileScreen />);
+      await act(async () => {
+        fireEvent.press(getByTestId('profile-photo-container'));
+      });
+
+      expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
+    });
+
+    it('handles photo upload successfully', async () => {
+      ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ status: 'granted' });
+      ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file://local/path.jpg', type: 'image', fileName: 'test.jpg' }]
+      });
+
+      const { getByTestId } = render(<ProfileScreen />);
+      await act(async () => {
+        fireEvent.press(getByTestId('profile-photo-container'));
+      });
+
+      await waitFor(() => {
+        expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled();
+      });
+
+      expect(mockUploadProfilePhoto).toHaveBeenCalled();
+    });
+
+    it('handles delete profile photo successfully', async () => {
+      mockUser = { ...mockUser, profile_photo_url: 'http://url' };
+      const { getByText } = render(<ProfileScreen />);
+      
+      fireEvent.press(getByText('Eliminar Foto'));
+      
+      await waitFor(() => {
+        expect(mockDeleteProfilePhoto).toHaveBeenCalled();
+      });
+
+      // reset
+      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario' };
+    });
   });
 });
