@@ -35,6 +35,9 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
     return config;
   },
   (error) => Promise.reject(error)
@@ -132,5 +135,12 @@ apiClient.interceptors.response.use(
     return Promise.reject(customError);
   }
 );
+
+export const getImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const base = BASE_URL.replace(/\/api$/, '');
+  return `${base}${url}`;
+};
 
 export default apiClient;

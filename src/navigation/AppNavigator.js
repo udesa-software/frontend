@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { navigationRef } from './navigationRef';
+import { setupNotificationListeners } from '../services/notificationService';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Linking from 'expo-linking';
@@ -14,8 +16,11 @@ import { PreferencesScreen } from '../screens/PreferencesScreen';
 import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { MapScreen } from '../screens/MapScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { UserProfileScreen } from '../screens/UserProfileScreen';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { colors, spacing } from '../theme';
+import { usersApi } from '../api/users';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -26,12 +31,25 @@ const linking = {
   prefixes: [prefix, 'udesamigos://'],
   config: {
     screens: {
-      ResetPassword: 'ResetPassword',
+      ResetPassword: 'reset-password',
     },
   },
 };
 
 function MainTabs() {
+  // H10 CA.1: heartbeat — registra actividad del usuario cada 60s para tracking de presencia.
+  // Solo corre mientras MainTabs está montado (usuario autenticado con la app en foreground).
+  useEffect(() => {
+    // Enviar heartbeat inmediato al entrar a la app
+    usersApi.heartbeat().catch(() => {});
+
+    const interval = setInterval(() => {
+      usersApi.heartbeat().catch(() => {}); // fire-and-forget, errores silenciosos
+    }, 60_000); // 60 segundos
+
+    return () => clearInterval(interval); // limpia al cerrar sesión/desmontar
+  }, []);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -82,6 +100,13 @@ function MainTabs() {
 function Navigator() {
   const { user, isLoading } = useAuth();
 
+  useEffect(() => {
+    if (user) {
+      const cleanupListeners = setupNotificationListeners();
+      return () => cleanupListeners();
+    }
+  }, [user]);
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
@@ -91,7 +116,7 @@ function Navigator() {
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
@@ -109,6 +134,14 @@ function Navigator() {
             <Stack.Screen
               name="ChangePassword"
               component={ChangePasswordScreen}
+            />
+            <Stack.Screen
+              name="Notifications"
+              component={NotificationsScreen}
+            />
+            <Stack.Screen
+              name="UserProfile"
+              component={UserProfileScreen}
             />
           </Stack.Group>
         ) : (

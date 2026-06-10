@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { authApi } from '../api/auth';
 import { usersApi } from '../api/users';
+import { registerForPushNotificationsAsync } from '../services/notificationService';
 
 const AuthContext = createContext(null);
 
@@ -18,6 +19,10 @@ export function AuthProvider({ children }) {
         const userData = await AsyncStorage.getItem('userData');
         if (token && userData) {
           setUser(JSON.parse(userData));
+          // Register push notifications token on session restoration (CA.3)
+          registerForPushNotificationsAsync().catch((err) =>
+            console.error('Failed to trigger auto-restored token registration:', err)
+          );
         }
       } catch (err) {
         console.error('Error cargando sesión:', err);
@@ -53,6 +58,12 @@ export function AuthProvider({ children }) {
     await saveRefreshToken(refreshToken);
 
     setUser(user);
+
+    // Register push notification token asynchronously upon login (CA.3)
+    registerForPushNotificationsAsync().catch((err) =>
+      console.error('Failed to trigger post-login token registration:', err)
+    );
+
     return response.data;
   };
 
@@ -93,8 +104,23 @@ export function AuthProvider({ children }) {
     setUser(updatedUser);
   };
 
+  const uploadProfilePhoto = async (formData) => {
+    const response = await usersApi.uploadProfilePhoto(formData);
+    const updatedUser = { ...user, profile_photo_url: response.data.profile_photo_url };
+    await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    return response.data.profile_photo_url;
+  };
+
+  const deleteProfilePhoto = async () => {
+    await usersApi.deleteProfilePhoto();
+    const updatedUser = { ...user, profile_photo_url: null };
+    await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, clearLocalSession, deleteAccount, updateProfile }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, clearLocalSession, deleteAccount, updateProfile, uploadProfilePhoto, deleteProfilePhoto }}>
       {children}
     </AuthContext.Provider>
   );

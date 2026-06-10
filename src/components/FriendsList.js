@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { AppButton } from './AppButton';
 import { colors, spacing, fontSizes, radii } from '../theme';
@@ -8,6 +9,7 @@ import { getFriendsLocations } from '../api/location';
 import { formatTimeAgo } from '../utils/date';
 
 export function FriendsList({ onGoToSearch }) {
+  const navigation = useNavigation();
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -142,11 +144,28 @@ export function FriendsList({ onGoToSearch }) {
 
   const renderItem = ({ item }) => (
     <View style={styles.card}>
-      <View style={styles.userInfo}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {(item.friend_username || 'U').charAt(0).toUpperCase()}
-          </Text>
+      {/* Sección izquierda: toca para ver el perfil del amigo */}
+      <TouchableOpacity
+        testID={`friend-card-${item.friend_id}`}
+        style={styles.userInfo}
+        onPress={() => navigation.navigate('UserProfile', {
+          userId: item.friend_id,
+          username: item.friend_username,
+        })}
+        activeOpacity={0.7}
+      >
+        {/* Avatar con indicador de presencia online (H10 CA.2) */}
+        <View style={styles.avatarWrapper}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {(item.friend_username || 'U').charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          {/* CA.2: punto verde si online, gris si offline */}
+          <View
+            testID={`online-dot-${item.friend_id}`}
+            style={[styles.onlineDot, item.is_online ? styles.onlineDotOnline : styles.onlineDotOffline]}
+          />
         </View>
         <View style={styles.details}>
           <Text style={styles.username}>{item.friend_username}</Text>
@@ -161,15 +180,16 @@ export function FriendsList({ onGoToSearch }) {
             </View>
           )}
         </View>
-        <AppButton 
-          title="Eliminar"
-          variant="danger"
-          style={styles.removeButton}
-          textStyle={styles.removeButtonText}
-          isLoading={removingId === item.friend_id}
-          onPress={() => handleRemoveFriend(item.friend_id, item.friend_username)}
-        />
-      </View>
+      </TouchableOpacity>
+      {/* Botón eliminar separado para no interferir con la navegación */}
+      <AppButton
+        title="Eliminar"
+        variant="danger"
+        style={styles.removeButton}
+        textStyle={styles.removeButtonText}
+        isLoading={removingId === item.friend_id}
+        onPress={() => handleRemoveFriend(item.friend_id, item.friend_username)}
+      />
     </View>
   );
 
@@ -278,6 +298,28 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: 'bold',
     fontSize: fontSizes.lg,
+  },
+  // H10 CA.2: wrapper relativo para posicionar el punto sobre el avatar
+  avatarWrapper: {
+    position: 'relative',
+    marginRight: spacing.md,
+  },
+  // H10 CA.2: indicador de presencia — punto en la esquina inferior derecha del avatar
+  onlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: colors.surface, // borde del mismo color que la card para efecto "flotante"
+  },
+  onlineDotOnline: {
+    backgroundColor: '#22c55e', // verde
+  },
+  onlineDotOffline: {
+    backgroundColor: '#6b7280', // gris
   },
   details: {
     flex: 1,

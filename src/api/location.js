@@ -115,3 +115,19 @@ export async function getRadar({ latitude, longitude }) {
   const response = await apiClient.post('/locations/radar', { latitude, longitude });
   return response.data;
 }
+
+/**
+ * Obtiene el perfil detallado de un amigo: biografía, presencia online e historial
+ * de ubicaciones recientes (vacío si el amigo está en modo privado).
+ *
+ * Solo puede llamarse entre usuarios con relación de amistad confirmada.
+ * El backend retorna 400 si no son amigos.
+ *
+ * @param {string} friendId - UUID del amigo a consultar
+ * @returns {Promise<Object>} Objeto con id, username, biography, is_online,
+ *                           last_seen_at, isHistoryPrivate, location_history[]
+ */
+export async function getFriendProfile(friendId) {
+  const response = await apiClient.get(`/locations/friends/${friendId}/profile`);
+  return response.data;
+}

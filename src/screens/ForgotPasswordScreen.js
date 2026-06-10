@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import * as Linking from 'expo-linking';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
 import { colors, spacing, fontSizes } from '../theme';
@@ -21,9 +22,11 @@ export function ForgotPasswordScreen({ navigation }) {
       setIsLoading(true);
       setError(null);
       
+      const returnUrl = Linking.createURL('/reset-password');
+
       // CA.4: El backend debería manejar el mensaje genérico, 
       // pero aquí nos aseguramos de mostrar éxito siempre al usuario.
-      await authApi.forgotPassword(identifier);
+      await authApi.forgotPassword(identifier, returnUrl);
       setIsSent(true);
     } catch (err) {
       // CA.4: Incluso si falla con 404 o 410, mostramos éxito por seguridad (evitar enumeración)

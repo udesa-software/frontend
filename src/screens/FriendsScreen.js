@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, ScrollView } from 'react-native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
 import { PendingRequestsList } from '../components/PendingRequestsList';
@@ -10,13 +11,20 @@ import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 
 export function FriendsScreen() {
+  const route = useRoute();
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('friends'); // 'friends' | 'search' | 'pending'
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (route.params?.activeTab) {
+      setActiveTab(route.params.activeTab);
+    }
+  }, [route.params?.activeTab]);
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [actionsLoading, setActionsLoading] = useState({});
-  // Guardamos localmente los IDs a los que ya enviamos solicitud en esta sesión
-  const [sentRequestIds, setSentRequestIds] = useState(new Set());
+  const [relationshipStatuses, setRelationshipStatuses] = useState({});
   // H6: toggle de descubrimiento
   const [showNearby, setShowNearby] = useState(false);
 
@@ -29,7 +37,19 @@ export function FriendsScreen() {
     setIsSearching(true);
     try {
       const response = await usersApi.search(searchQuery.trim());
-      setSearchResults(response.data.users || response.data || []);
+      const users = response.data.users || response.data || [];
+      if (users.length > 0) {
+        try {
+          const ids = users.map(u => u.id);
+          const statusesRes = await friendsApi.getRelationshipStatuses(ids);
+          setRelationshipStatuses(statusesRes.data || {});
+        } catch (e) {
+          console.error("Error fetching statuses:", e);
+        }
+      } else {
+        setRelationshipStatuses({});
+      }
+      setSearchResults(users);
     } catch (err) {
       console.error('Error al buscar usuarios:', err);
       const msg = err.response?.data?.error || err.message || 'Error al buscar usuarios';
@@ -39,14 +59,27 @@ export function FriendsScreen() {
     }
   };
 
-  const handleSendRequest = async (user) => {
+  const handleAction = async (user) => {
+    const status = relationshipStatuses[user.id] || 'none';
+    if (status === 'self' || status === 'blocked') return;
+
     setActionsLoading(prev => ({ ...prev, [user.id]: true }));
     try {
-      await friendsApi.sendRequest(user.id);
-      // Actualizamos el estado local inmediatamente
-      setSentRequestIds(prev => new Set(prev).add(user.id));
+      if (status === 'none') {
+        await friendsApi.sendRequest(user.id);
+        setRelationshipStatuses(prev => ({ ...prev, [user.id]: 'pending_sent' }));
+      } else if (status === 'friends') {
+        await friendsApi.removeFriend(user.id);
+        setRelationshipStatuses(prev => ({ ...prev, [user.id]: 'none' }));
+      } else if (status === 'pending_sent') {
+        await friendsApi.cancelRequest(user.id);
+        setRelationshipStatuses(prev => ({ ...prev, [user.id]: 'none' }));
+      } else if (status === 'pending_received') {
+        await friendsApi.acceptRequest(user.id);
+        setRelationshipStatuses(prev => ({ ...prev, [user.id]: 'friends' }));
+      }
     } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Error al enviar solicitud';
+      const msg = err.response?.data?.error || err.message || 'Error en la acción';
       Alert.alert('Error', msg);
     } finally {
       setActionsLoading(prev => ({ ...prev, [user.id]: false }));
@@ -55,10 +88,47 @@ export function FriendsScreen() {
 
   const renderUserItem = ({ item }) => {
     const isLoading = actionsLoading[item.id] || false;
-    const isSent = sentRequestIds.has(item.id);
+    const status = relationshipStatuses[item.id] || 'none';
+
+    if (status === 'self' || status === 'blocked') {
+      return (
+        <TouchableOpacity 
+          style={styles.userCard}
+          onPress={() => navigation.navigate('UserProfile', { userId: item.id, username: item.username })}
+          activeOpacity={0.7}
+        >
+          <View style={styles.userInfo}>
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>{item.username.charAt(0).toUpperCase()}</Text>
+            </View>
+            <View style={styles.userDetails}>
+              <Text style={styles.username}>{item.username}</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    let btnTitle = 'Agregar';
+    let btnVariant = 'primary';
+
+    if (status === 'friends') {
+      btnTitle = 'Eliminar';
+      btnVariant = 'danger';
+    } else if (status === 'pending_sent') {
+      btnTitle = 'Pendiente';
+      btnVariant = 'secondary';
+    } else if (status === 'pending_received') {
+      btnTitle = 'Aceptar';
+      btnVariant = 'success';
+    }
 
     return (
-      <View style={styles.userCard}>
+      <TouchableOpacity 
+        style={styles.userCard}
+        onPress={() => navigation.navigate('UserProfile', { userId: item.id, username: item.username })}
+        activeOpacity={0.7}
+      >
         <View style={styles.userInfo}>
            <View style={styles.avatarPlaceholder}>
              <Text style={styles.avatarText}>{item.username.charAt(0).toUpperCase()}</Text>
@@ -68,15 +138,14 @@ export function FriendsScreen() {
            </View>
         </View>
         <AppButton 
-          title={isSent ? 'Pendiente' : 'Agregar'} 
-          onPress={() => handleSendRequest(item)}
+          title={btnTitle} 
+          onPress={() => handleAction(item)}
           isLoading={isLoading}
-          variant={isSent ? 'secondary' : 'primary'}
-          disabled={isSent}
+          variant={btnVariant}
           style={styles.addButton}
           textStyle={{ fontSize: fontSizes.sm }}
         />
-      </View>
+      </TouchableOpacity>
     );
   };
 

@@ -9,6 +9,10 @@ jest.mock('../../src/api/users', () => ({
 jest.mock('../../src/api/friends', () => ({
   friendsApi: {
     sendRequest: jest.fn(),
+    getRelationshipStatuses: jest.fn(),
+    removeFriend: jest.fn(),
+    cancelRequest: jest.fn(),
+    acceptRequest: jest.fn(),
   }
 }));
 
@@ -23,6 +27,7 @@ jest.mock('../../src/components/NearbyUsersList', () => ({
 import { FriendsScreen } from '../../src/screens/FriendsScreen';
 import { usersApi } from '../../src/api/users';
 import { friendsApi } from '../../src/api/friends';
+import { useRoute } from '@react-navigation/native';
 
 
 describe('FriendsScreen', () => {
@@ -30,6 +35,7 @@ describe('FriendsScreen', () => {
     jest.clearAllMocks();
     usersApi.search.mockResolvedValue({ data: [] });
     friendsApi.sendRequest.mockResolvedValue({ data: { message: 'Ok' } });
+    friendsApi.getRelationshipStatuses.mockResolvedValue({ data: {} });
   });
 
   it('renders correctly', () => {
@@ -92,6 +98,9 @@ describe('FriendsScreen', () => {
     usersApi.search.mockResolvedValueOnce({
       data: [{ id: '1', username: 'juan', biography: 'Hola' }]
     });
+    friendsApi.getRelationshipStatuses.mockResolvedValueOnce({
+      data: { '1': 'none' }
+    });
 
     const { getByPlaceholderText, getByText, findByText, queryByText } = render(<FriendsScreen />);
     
@@ -116,6 +125,9 @@ describe('FriendsScreen', () => {
   it('handles sendRequest error gracefully', async () => {
     usersApi.search.mockResolvedValueOnce({
       data: [{ id: '1', username: 'juan', biography: 'Hola' }]
+    });
+    friendsApi.getRelationshipStatuses.mockResolvedValueOnce({
+      data: { '1': 'none' }
     });
     friendsApi.sendRequest.mockRejectedValueOnce({ response: { data: { error: 'Error' } } });
 
@@ -216,6 +228,7 @@ describe('FriendsScreen', () => {
 
     // 2. sendRequest Error without response
     usersApi.search.mockResolvedValueOnce({ data: [{ id: '1', username: 'juan' }] });
+    friendsApi.getRelationshipStatuses.mockResolvedValueOnce({ data: { '1': 'none' } });
     fireEvent.changeText(getByPlaceholderText('Buscar por usuario'), 'juan');
     fireEvent.press(getByText('Buscar'));
     await findByText('juan');
@@ -223,6 +236,67 @@ describe('FriendsScreen', () => {
     friendsApi.sendRequest.mockRejectedValueOnce(new Error('Send Failed'));
     fireEvent.press(getByText('Agregar'));
     await waitFor(() => expect(spy).toHaveBeenCalledWith('Error', 'Send Failed'));
+  });
+
+  it('handles other status actions: friends, pending_received, and pending_sent', async () => {
+    usersApi.search.mockResolvedValueOnce({
+      data: [
+        { id: '1', username: 'amigo' },
+        { id: '2', username: 'recibido' },
+        { id: '3', username: 'enviado' }
+      ]
+    });
+    friendsApi.getRelationshipStatuses.mockResolvedValueOnce({
+      data: { '1': 'friends', '2': 'pending_received', '3': 'pending_sent' }
+    });
+
+    const { getByPlaceholderText, getByText, findByText } = render(<FriendsScreen />);
+    
+    fireEvent.press(getByText('Explorar'));
+    fireEvent.changeText(getByPlaceholderText('Buscar por usuario'), 'test');
+    fireEvent.press(getByText('Buscar'));
+
+    await findByText('amigo');
+    await findByText('recibido');
+    await findByText('enviado');
+
+    // Remove friend
+    friendsApi.removeFriend.mockResolvedValueOnce({ data: {} });
+    fireEvent.press(getByText('Eliminar'));
+    await waitFor(() => expect(friendsApi.removeFriend).toHaveBeenCalledWith('1'));
+
+    // Accept request
+    friendsApi.acceptRequest.mockResolvedValueOnce({ data: {} });
+    fireEvent.press(getByText('Aceptar'));
+    await waitFor(() => expect(friendsApi.acceptRequest).toHaveBeenCalledWith('2'));
+
+    // Cancel request
+    friendsApi.cancelRequest.mockResolvedValueOnce({ data: {} });
+    fireEvent.press(getByText('Pendiente'));
+    await waitFor(() => expect(friendsApi.cancelRequest).toHaveBeenCalledWith('3'));
+  });
+
+  it('does not render actions for self or blocked status', async () => {
+    usersApi.search.mockResolvedValueOnce({
+      data: [
+        { id: '1', username: 'selfuser' },
+        { id: '2', username: 'blockeduser' }
+      ]
+    });
+    friendsApi.getRelationshipStatuses.mockResolvedValueOnce({
+      data: { '1': 'self', '2': 'blocked' }
+    });
+
+    const { getByPlaceholderText, getByText, findByText, queryByText } = render(<FriendsScreen />);
+    
+    fireEvent.press(getByText('Explorar'));
+    fireEvent.changeText(getByPlaceholderText('Buscar por usuario'), 'test');
+    fireEvent.press(getByText('Buscar'));
+
+    await findByText('selfuser');
+    await findByText('blockeduser');
+
+    expect(queryByText('Agregar')).toBeNull();
   });
 
   it('shows "Buscar usuarios cercanos" button in Explorar tab', async () => {
@@ -244,6 +318,19 @@ describe('FriendsScreen', () => {
     // Button disappears and NearbyUsersList renders
     await findByText('NearbyUsersListMock');
     expect(() => getByText('Buscar usuarios cercanos')).toThrow();
+  });
+
+  it('sets activeTab from route params if provided', () => {
+    friendsApi.getPendingRequests = jest.fn().mockResolvedValue({ 
+      data: { data: [], pagination: { page: 1, totalPages: 0 } } 
+    });
+    
+    useRoute.mockReturnValueOnce({ params: { activeTab: 'pending' } });
+    const { queryByText, queryByPlaceholderText } = render(<FriendsScreen />);
+
+    // Since it starts in 'pending', the search input and 'Mis Amigos' alphabetical list shouldn't be there
+    expect(queryByPlaceholderText('Buscar por usuario')).toBeNull();
+    // Assuming PendingRequestsList is mounted when 'pending' is active
   });
 });
 

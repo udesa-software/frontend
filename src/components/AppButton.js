@@ -20,6 +20,8 @@ export function AppButton({
         return styles.textContainer;
       case 'danger':
         return styles.dangerContainer;
+      case 'success':
+        return styles.successContainer;
       case 'primary':
       default:
         return styles.primaryContainer;
@@ -34,6 +36,8 @@ export function AppButton({
         return styles.textText;
       case 'danger':
         return styles.dangerText;
+      case 'success':
+        return styles.successText;
       case 'primary':
       default:
         return styles.primaryText;
@@ -87,6 +91,9 @@ const styles = StyleSheet.create({
   dangerContainer: {
     backgroundColor: colors.error,
   },
+  successContainer: {
+    backgroundColor: colors.success,
+  },
   disabled: {
     opacity: 0.6,
   },
@@ -104,6 +111,9 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   dangerText: {
+    color: colors.text,
+  },
+  successText: {
     color: colors.text,
   },
 });
