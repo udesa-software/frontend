@@ -242,8 +242,8 @@ export function ProfileScreen() {
         <Text style={styles.sectionTitle}>Cuenta</Text>
         <View style={styles.card}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>ID de Usuario</Text>
-            <Text style={styles.infoValue}>{user.id?.slice(0, 8)}...</Text>
+            <Text style={styles.infoLabel}>Email</Text>
+            <Text style={styles.infoValue}>{user.email}</Text>
           </View>
           <View style={[styles.infoRow, styles.lastRow]}>
             <Text style={styles.infoLabel}>Rol</Text>
