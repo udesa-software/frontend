@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { AppButton } from './AppButton';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { friendsApi } from '../api/friends';
 
 export function PendingRequestsList() {
@@ -11,6 +11,9 @@ export function PendingRequestsList() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [actionsLoading, setActionsLoading] = useState({});
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   const loadingRef = useRef(false);
 
   const fetchRequests = useCallback(async (pageNum, isRefresh = false) => {
@@ -158,7 +161,7 @@ export function PendingRequestsList() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxl,

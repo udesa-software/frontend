@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
-import { colors, spacing, fontSizes } from '../theme';
+import { spacing, fontSizes, useTheme } from '../theme/index';
 import { authApi } from '../api/auth';
 
 export function ResetPasswordScreen({ navigation, route }) {
@@ -12,6 +12,8 @@ export function ResetPasswordScreen({ navigation, route }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   const [isVerifyingToken, setIsVerifyingToken] = useState(true);
   const [isSuccess, setIsSuccess] = useState(false);
   const [tokenError, setTokenError] = useState(null);
@@ -156,7 +158,7 @@ export function ResetPasswordScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

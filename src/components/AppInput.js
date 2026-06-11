@@ -1,6 +1,6 @@
 import React from 'react';
 import { TextInput, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 
 export function AppInput({
   label,
@@ -11,6 +11,9 @@ export function AppInput({
   wrapperStyle,
   ...props
 }) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   return (
     <View style={[styles.wrapper, wrapperStyle]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
@@ -34,7 +37,7 @@ export function AppInput({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   wrapper: {
     marginBottom: spacing.md,
   },

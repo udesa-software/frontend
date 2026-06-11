@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, Ale
 import { useNavigation } from '@react-navigation/native';
 import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { authApi } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,6 +17,8 @@ export function ChangePasswordScreen() {
   
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
 
   const validate = () => {
     if (!currentPassword) return 'La contraseña actual es obligatoria';
@@ -135,7 +137,7 @@ export function ChangePasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
