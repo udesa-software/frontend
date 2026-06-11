@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableOpacity, Switch } from 'react-native';
 import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { usersApi } from '../api/users';
 import { getPrivacyStatus, setPrivacyStatus } from '../api/location';
 import { useNavigation } from '@react-navigation/native';
@@ -11,6 +11,9 @@ const ALLOWED_FREQUENCIES = [5, 15, 30];
 
 export function PreferencesScreen() {
   const navigation = useNavigation();
+  const { colors, isDarkMode, toggleTheme } = useTheme();
+  const styles = getStyles(colors);
+  
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -167,11 +170,32 @@ export function PreferencesScreen() {
               </Text>
             </View>
             <Switch
+              testID="privacy-switch"
               value={isPrivate}
               onValueChange={togglePrivacy}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={Platform.OS === 'ios' ? undefined : (isPrivate ? colors.primaryLight || '#fff' : '#f4f3f4')}
               disabled={isSaving}
+            />
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1, paddingRight: spacing.md }}>
+              <Text style={styles.sectionTitle}>Apariencia</Text>
+              <Text style={styles.helperText}>
+                {isDarkMode 
+                  ? 'Modo Oscuro activado. Ideal para entornos con poca luz.' 
+                  : 'Modo Claro activado. Ideal para usar al aire libre.'}
+              </Text>
+            </View>
+            <Switch
+              testID="theme-switch"
+              value={isDarkMode}
+              onValueChange={toggleTheme}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={Platform.OS === 'ios' ? undefined : (isDarkMode ? colors.primaryLight || '#fff' : '#f4f3f4')}
             />
           </View>
         </View>
@@ -194,7 +218,7 @@ export function PreferencesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
