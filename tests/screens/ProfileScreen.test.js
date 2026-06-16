@@ -39,6 +39,8 @@ jest.mock('../../src/context/AuthContext', () => ({
 jest.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: jest.fn(),
   launchImageLibraryAsync: jest.fn(),
+  requestCameraPermissionsAsync: jest.fn(),
+  launchCameraAsync: jest.fn(),
   MediaTypeOptions: { Images: 'Images' },
 }));
 
@@ -333,6 +335,131 @@ describe('ProfileScreen', () => {
       
       await waitFor(() => {
         expect(mockDeleteProfilePhoto).toHaveBeenCalled();
+      });
+
+      // reset
+      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario' };
+    });
+
+    it('handles camera capture successfully', async () => {
+      jest.spyOn(Alert, 'alert').mockImplementation((title, msg, buttons) => {
+        if (buttons && buttons.length > 0) {
+          const btn = buttons.find(b => b.text === 'Tomar foto (Cámara)');
+          if (btn && btn.onPress) {
+            btn.onPress();
+          }
+        }
+      });
+
+      ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ status: 'granted' });
+      ImagePicker.requestCameraPermissionsAsync.mockResolvedValueOnce({ status: 'granted' });
+      ImagePicker.launchCameraAsync.mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file://local/path.png', type: 'image', fileName: 'test.png' }]
+      });
+
+      const { getByTestId } = render(<ProfileScreen />);
+      await act(async () => {
+        fireEvent.press(getByTestId('profile-photo-container'));
+      });
+
+      await waitFor(() => {
+        expect(ImagePicker.launchCameraAsync).toHaveBeenCalled();
+      });
+      expect(mockUploadProfilePhoto).toHaveBeenCalled();
+    });
+
+    it('shows error if camera permission is denied', async () => {
+      jest.spyOn(Alert, 'alert').mockImplementation((title, msg, buttons) => {
+        if (buttons && buttons.length > 0) {
+          const btn = buttons.find(b => b.text === 'Tomar foto (Cámara)');
+          if (btn && btn.onPress) {
+            btn.onPress();
+          }
+        }
+      });
+
+      ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ status: 'granted' });
+      ImagePicker.requestCameraPermissionsAsync.mockResolvedValueOnce({ status: 'denied' });
+      
+      const { getByTestId } = render(<ProfileScreen />);
+      await act(async () => {
+        fireEvent.press(getByTestId('profile-photo-container'));
+      });
+
+      expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled();
+    });
+
+    it('shows error if image format is invalid', async () => {
+      ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ status: 'granted' });
+      ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file://local/path.gif', type: 'image', fileName: 'test.gif' }]
+      });
+
+      const alertSpy = jest.spyOn(Alert, 'alert');
+      const { getByTestId } = render(<ProfileScreen />);
+      
+      await act(async () => {
+        fireEvent.press(getByTestId('profile-photo-container'));
+      });
+
+      await waitFor(() => {
+        expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled();
+      });
+
+      expect(alertSpy).toHaveBeenCalledWith('Formato Inválido', expect.any(String));
+    });
+
+    it('shows error if pickImage fails', async () => {
+      ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ status: 'granted' });
+      ImagePicker.launchImageLibraryAsync.mockRejectedValueOnce(new Error('Pick image failed'));
+
+      const alertSpy = jest.spyOn(Alert, 'alert');
+      const { getByTestId } = render(<ProfileScreen />);
+      
+      await act(async () => {
+        fireEvent.press(getByTestId('profile-photo-container'));
+      });
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith('Error', 'Pick image failed');
+      });
+    });
+
+    it('shows error if uploadProfilePhoto fails', async () => {
+      ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ status: 'granted' });
+      ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file://local/path.jpg', type: 'image', fileName: 'test.jpg' }]
+      });
+      mockUploadProfilePhoto.mockRejectedValueOnce(new Error('Upload failed'));
+
+      const alertSpy = jest.spyOn(Alert, 'alert');
+      const { getByTestId } = render(<ProfileScreen />);
+      
+      await act(async () => {
+        fireEvent.press(getByTestId('profile-photo-container'));
+      });
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith('Error al subir foto', 'Upload failed');
+      });
+    });
+
+    it('shows error if deleteProfilePhoto fails', async () => {
+      mockUser = { ...mockUser, profile_photo_url: 'http://url' };
+      mockDeleteProfilePhoto.mockRejectedValueOnce(new Error('Delete failed'));
+
+      const alertSpy = jest.spyOn(Alert, 'alert');
+      const { getByText } = render(<ProfileScreen />);
+      
+      await act(async () => {
+        fireEvent.press(getByText('Eliminar Foto'));
+      });
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith('Error', 'Delete failed');
       });
 
       // reset
