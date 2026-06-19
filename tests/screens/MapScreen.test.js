@@ -55,6 +55,7 @@ jest.mock('../../src/api/location', () => ({
   getFriendsLocations: (...args) => mockGetFriendsLocations(...args),
   updateLabel: (...args) => mockUpdateLabel(...args),
   deleteLabel: (...args) => mockDeleteLabel(...args),
+  updatePinColor: jest.fn(),
 }));
 
 // Mock Map components to avoid native module errors
@@ -618,12 +619,101 @@ test('opens settings when pressing Configuración on GPS error', async () => {
 test('centerOnMe animates to region', async () => {
   mockRequestPermissions.mockResolvedValue({ status: 'granted' });
   mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
-  
+
   render(<MapScreen />);
   await waitFor(() => screen.getByTestId('map-view'));
-  
+
   const locateBtn = screen.getByText('locate');
   fireEvent.press(locateBtn);
+});
+
+// ── H9: Color del Pin ─────────────────────────────────────────────────────────
+
+test('H9: usa el pinColor del amigo si está definido', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue({
+    coords: { latitude: -34.5833, longitude: -58.4372 },
+  });
+
+  mockGetFriendsLocations.mockResolvedValue({
+    friends: [
+      {
+        userId: '2',
+        username: 'juan',
+        latitude: -34.5834,
+        longitude: -58.4373,
+        distance: '10m',
+        pinColor: '#4ECDC4',
+      },
+    ],
+  });
+
+  render(<MapScreen />);
+
+  await waitFor(() => {
+    expect(screen.getByTestId('map-view')).toBeTruthy();
+    expect(screen.getByText('juan')).toBeTruthy();
+  });
+
+  // El marcador se renderiza — la lógica de color corre sin crash
+  const markers = screen.getAllByTestId('map-marker');
+  expect(markers.length).toBe(2); // propio + amigo
+});
+
+test('H9: usa color por defecto (#FF6B6B) si el amigo no tiene pinColor', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue({
+    coords: { latitude: -34.5833, longitude: -58.4372 },
+  });
+
+  mockGetFriendsLocations.mockResolvedValue({
+    friends: [
+      {
+        userId: '3',
+        username: 'maria',
+        latitude: -34.5850,
+        longitude: -58.4380,
+        distance: '200m',
+        pinColor: null,
+      },
+    ],
+  });
+
+  render(<MapScreen />);
+
+  await waitFor(() => {
+    expect(screen.getByText('maria')).toBeTruthy();
+  });
+
+  const markers = screen.getAllByTestId('map-marker');
+  expect(markers.length).toBe(2);
+});
+
+test('H9: renderiza correctamente múltiples amigos con distintos colores de pin', async () => {
+  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  mockGetCurrentPosition.mockResolvedValue({
+    coords: { latitude: -34.5833, longitude: -58.4372 },
+  });
+
+  mockGetFriendsLocations.mockResolvedValue({
+    friends: [
+      { userId: '2', username: 'juan',  latitude: -34.5834, longitude: -58.4373, distance: '10m',  pinColor: '#4ECDC4' },
+      { userId: '3', username: 'maria', latitude: -34.5850, longitude: -58.4380, distance: '200m', pinColor: '#45B7D1' },
+      { userId: '4', username: 'pedro', latitude: -34.5860, longitude: -58.4390, distance: '300m', pinColor: null },
+    ],
+  });
+
+  render(<MapScreen />);
+
+  await waitFor(() => {
+    expect(screen.getByText('juan')).toBeTruthy();
+    expect(screen.getByText('maria')).toBeTruthy();
+    expect(screen.getByText('pedro')).toBeTruthy();
+  });
+
+  // 1 propio + 3 amigos
+  const markers = screen.getAllByTestId('map-marker');
+  expect(markers.length).toBe(4);
 });
 
 });

@@ -1,12 +1,13 @@
 import apiClient from '../../src/api/client';
-import { 
-  updateLocation, 
-  getFriendsLocations, 
-  updateLabel, 
+import {
+  updateLocation,
+  getFriendsLocations,
+  updateLabel,
   deleteLabel,
   getPrivacyStatus,
   setPrivacyStatus,
-  getRadar
+  getRadar,
+  updatePinColor,
 } from '../../src/api/location';
 
 jest.mock('../../src/api/client', () => ({
@@ -91,6 +92,26 @@ describe('location API', () => {
       const result = await getRadar({ latitude: -34.6, longitude: -58.4 });
       expect(apiClient.post).toHaveBeenCalledWith('/locations/radar', { latitude: -34.6, longitude: -58.4 });
       expect(result.users).toHaveLength(1);
+    });
+  });
+
+  // H9: color del pin
+  describe('updatePinColor', () => {
+    it('llama al endpoint correcto con el color elegido (CA.1)', async () => {
+      apiClient.patch.mockResolvedValueOnce({ data: { message: 'Color de pin actualizado', pinColor: '#4ECDC4' } });
+
+      const result = await updatePinColor('#4ECDC4');
+
+      expect(apiClient.patch).toHaveBeenCalledWith('/locations/pin-color', { pinColor: '#4ECDC4' });
+      expect(result.pinColor).toBe('#4ECDC4');
+    });
+
+    it('retorna el mensaje del servidor', async () => {
+      apiClient.patch.mockResolvedValueOnce({ data: { message: 'Color de pin actualizado', pinColor: '#FF6B6B' } });
+
+      const result = await updatePinColor('#FF6B6B');
+
+      expect(result.message).toBe('Color de pin actualizado');
     });
   });
 });
