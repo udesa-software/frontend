@@ -45,6 +45,7 @@ export function DiscoverScreen() {
   // siempre valdría 0 dentro del handler.
   const currentIndexRef = useRef(0);
   const recommendationsRef = useRef([]);
+  const swipedUserIdsRef = useRef(new Set());
 
   // Resetear la posición de la carta DESPUÉS de que React confirma
   // el nuevo currentIndex en pantalla. Hacerlo antes causaría que
@@ -71,8 +72,9 @@ export function DiscoverScreen() {
     setIsLoading(true);
     try {
       const data = await aiApi.getRecommendations(user);
-      recommendationsRef.current = data;
-      setRecommendations(data);
+      const pendingRecommendations = data.filter((item) => !swipedUserIdsRef.current.has(item.id));
+      recommendationsRef.current = pendingRecommendations;
+      setRecommendations(pendingRecommendations);
       setCurrentIndex(0);
     } catch (err) {
       console.error('Error fetching recommendations:', err);
@@ -139,6 +141,9 @@ export function DiscoverScreen() {
     // del panResponder (que captura currentIndex=0 del primer render).
     const idx = currentIndexRef.current;
     const item = recommendationsRef.current[idx];
+    if (item) {
+      swipedUserIdsRef.current.add(item.id);
+    }
 
     // Avanzar el índice: el useEffect se encargará de hacer stopAnimation
     // + setValue DESPUÉS de que React confirme el nuevo currentIndex,
