@@ -19,6 +19,7 @@ import { updateLocation, getFriendsLocations, updateLabel, deleteLabel } from '.
 import { colors, fontSizes, radii, spacing } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { CoordsCard, StatusView, SyncBadge } from '../components/MapComponents';
+import { formatTimeAgo } from '../utils/date';
 
 const UPDATE_INTERVAL_MS = 30_000;
 const INITIAL_DELTA = { latitudeDelta: 0.01, longitudeDelta: 0.01 };
@@ -37,7 +38,7 @@ export function MapScreen() {
   const [syncStatus, setSyncStatus] = useState('idle');
   const [lastSent, setLastSent] = useState(null);
   const [friends, setFriends] = useState([]);
-  
+
   const [myLabel, setMyLabel] = useState('');
   const [tempLabel, setTempLabel] = useState('');
   const [isUpdatingLabel, setIsUpdatingLabel] = useState(false);
@@ -121,7 +122,7 @@ export function MapScreen() {
           }
           return;
         }
-        let position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => 
+        let position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() =>
           Location.getLastKnownPositionAsync()
         );
 
@@ -223,9 +224,9 @@ export function MapScreen() {
           initialRegion={{ ...coords, ...INITIAL_DELTA }}
           showsCompass
         >
-          {}
-          <Marker 
-            coordinate={coords} 
+          { }
+          <Marker
+            coordinate={coords}
             zIndex={5}
           >
             <View style={[styles.miniMarker, { backgroundColor: colors.primary }]} />
@@ -237,14 +238,14 @@ export function MapScreen() {
             </Callout>
           </Marker>
 
-          {}
+          { }
           {friends.map((friend, index) => {
             const { latitude: jitterLat, longitude: jitterLon } = getJitteredCoords(friend, index);
 
             return (
-              <Marker 
-                key={friend.userId} 
-                coordinate={{ latitude: jitterLat, longitude: jitterLon }} 
+              <Marker
+                key={friend.userId}
+                coordinate={{ latitude: jitterLat, longitude: jitterLon }}
                 zIndex={10 + index}
               >
                 <View style={[styles.miniMarker, { backgroundColor: '#FF6B6B' }]} />
@@ -252,62 +253,67 @@ export function MapScreen() {
                   <View>
                     <Text style={styles.calloutName}>{friend.username}</Text>
                     {friend.label && <Text style={styles.calloutLabel}>✨ {friend.label}</Text>}
-                    <Text style={styles.calloutDistance}>📍 A {friend.distance}</Text>
+                    <View style={styles.calloutFooter}>
+                      <Text style={styles.calloutDistance}>📍 A {friend.distance}</Text>
+                      {friend.updatedAt && (
+                        <Text style={styles.calloutTime}> • {formatTimeAgo(friend.updatedAt)}</Text>
+                      )}
+                    </View>
                   </View>
                 </Callout>
               </Marker>
             );
           })}
         </MapView>
-        
+
         {/* User Stats Floating */}
         <View style={styles.floatingHeader}>
-            <View style={styles.userHeaderInfo}>
-                <Text style={styles.greeting}>@{user?.username}</Text>
-                <CoordsCard lastSent={lastSent} />
-            </View>
-            <SyncBadge status={syncStatus} />
+          <View style={styles.userHeaderInfo}>
+            <Text style={styles.greeting}>@{user?.username}</Text>
+            <CoordsCard lastSent={lastSent} />
+          </View>
+          <SyncBadge status={syncStatus} />
         </View>
 
         {/* Floating Capsule Footer */}
         <View style={styles.floatingFooter}>
-            <View style={styles.tagCapsule}>
-                <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textMuted} />
-                <TextInput
-                    style={styles.labelTextInput}
-                    value={tempLabel}
-                    onChangeText={setTempLabel}
-                    placeholder={myLabel || "Pon tu estado..."}
-                    placeholderTextColor={colors.textMuted}
-                    maxLength={30}
-                    returnKeyType="done"
-                />
-                
-                {isUpdatingLabel ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                    <View style={{flexDirection: 'row', gap: 10}}>
-                        {tempLabel !== '' && (
-                            <Pressable onPress={onUpdateLabel}>
-                                <Ionicons name="checkmark-circle" size={28} color={colors.success} />
-                            </Pressable>
-                        )}
-                        {myLabel !== '' && (
-                            <Pressable onPress={async () => {
-                                try {
-                                    await deleteLabel();
-                                    setMyLabel('');
-                                    setTempLabel('');
-                                } catch (err) {
-                                    Alert.alert("Error", "No se pudo borrar.");
-                                }
-                            }}>
-                                <Ionicons name="close-circle-outline" size={28} color={colors.error} />
-                            </Pressable>
-                        )}
-                    </View>
+          <View style={styles.tagCapsule}>
+            <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textMuted} />
+            <TextInput
+              style={styles.labelTextInput}
+              value={tempLabel}
+              onChangeText={setTempLabel}
+              placeholder={myLabel || "Pon tu estado..."}
+              placeholderTextColor={colors.textMuted}
+              maxLength={30}
+              returnKeyType="done"
+            />
+
+            {isUpdatingLabel ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {tempLabel !== '' && (
+                  <Pressable onPress={onUpdateLabel}>
+                    <Ionicons name="checkmark-circle" size={28} color={colors.success} />
+                  </Pressable>
                 )}
-            </View>
+                {myLabel !== '' && (
+                  <Pressable onPress={async () => {
+                    try {
+                      await deleteLabel();
+                      setMyLabel('');
+                      setTempLabel('');
+                    } catch (err) {
+                      Alert.alert("Error", "No se pudo borrar.");
+                    }
+                  }}>
+                    <Ionicons name="close-circle-outline" size={28} color={colors.error} />
+                  </Pressable>
+                )}
+              </View>
+            )}
+          </View>
         </View>
 
         <Pressable style={styles.centerButton} onPress={centerOnMe}>
@@ -374,7 +380,7 @@ const styles = StyleSheet.create({
   floatingHeader: {
     position: 'absolute', top: 50, left: 20, right: 20,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: 'rgba(26, 26, 46, 0.9)', 
+    backgroundColor: 'rgba(26, 26, 46, 0.9)',
     padding: 12, borderRadius: 20, borderWidth: 1, borderColor: colors.border,
   },
   userHeaderInfo: { flex: 1 },
@@ -385,7 +391,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', zIndex: 10,
   },
   tagCapsule: {
-    flexDirection: 'row', alignItems: 'center', 
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(26, 26, 46, 0.95)',
     paddingHorizontal: 16, paddingVertical: 10,
     borderRadius: 35,
@@ -394,8 +400,8 @@ const styles = StyleSheet.create({
     elevation: 8,
     width: '100%',
   },
-  labelTextInput: { 
-    flex: 1, color: colors.text, fontSize: fontSizes.sm, 
+  labelTextInput: {
+    flex: 1, color: colors.text, fontSize: fontSizes.sm,
     fontWeight: '600', marginLeft: 10, padding: 5,
   },
 
@@ -405,9 +411,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', elevation: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84,
   },
-  
+
   callout: { width: 140, padding: 5 },
   calloutName: { fontWeight: 'bold', fontSize: fontSizes.md, color: '#000' },
   calloutLabel: { color: colors.primary, fontSize: fontSizes.sm, fontWeight: '600', marginTop: 2 },
-  calloutDistance: { fontSize: fontSizes.xs, color: '#444', marginTop: 4 },
+  calloutDistance: { fontSize: fontSizes.xs, color: '#444' },
+  calloutFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  calloutTime: { fontSize: fontSizes.xs, color: colors.textMuted },
 });

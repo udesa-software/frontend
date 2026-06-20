@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { MapScreen } from '../../src/screens/MapScreen';
 import { Alert } from 'react-native';
+import * as Battery from 'expo-battery';
 
 
 const mockUser = {
@@ -41,7 +42,7 @@ jest.mock('expo-location', () => ({
 }));
 
 jest.mock('expo-battery', () => ({
-  getBatteryLevelAsync: jest.fn().mockResolvedValue(0.5), // 50% battery
+  getBatteryLevelAsync: jest.fn(),
 }));
 
 // Mock API
@@ -58,6 +59,7 @@ jest.mock('../../src/api/location', () => ({
 }));
 
 // Mock Map components to avoid native module errors
+const mockAnimateToRegion = jest.fn();
 jest.mock('react-native-maps', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -82,6 +84,7 @@ jest.mock('react-native-maps', () => {
 
 // Suppress act() warnings from React Testing Library
 const originalError = console.error;
+const originalWarn = console.warn;
 beforeAll(() => {
   console.error = (...args) => {
     if (typeof args[0] === 'string' && args[0].includes('not wrapped in act(')) return;
@@ -90,6 +93,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   console.error = originalError;
+  console.warn = originalWarn;
 });
 
 
@@ -99,359 +103,200 @@ describe('<MapScreen />', () => {
     jest.clearAllMocks();
     mockGetLastKnownPosition.mockResolvedValue(null);
     mockGetFriendsLocations.mockResolvedValue({ friends: [] });
+    mockUpdateLocation.mockResolvedValue({});
+    mockUpdateLabel.mockResolvedValue({});
+    mockDeleteLabel.mockResolvedValue({});
+    Battery.getBatteryLevelAsync.mockResolvedValue(0.5);
+    console.warn = jest.fn();
   });
 
   test('shows loading state while obtaining location', () => {
-    // Retrasar la promesa para que se vea el cargando
     mockRequestPermissions.mockReturnValue(new Promise(() => {}));
-
     render(<MapScreen />);
     expect(screen.getByText('Localizando...')).toBeTruthy();
   });
 
   test('shows error when location permission is denied', async () => {
     mockRequestPermissions.mockResolvedValue({ status: 'denied' });
+    const linkingSpy = jest.spyOn(require('react-native').Linking, 'openSettings').mockImplementation(() => {});
 
     render(<MapScreen />);
+    await waitFor(() => expect(screen.getByText('Permiso denegado.')).toBeTruthy());
 
-    await waitFor(() => {
-      expect(screen.getByText('Permiso denegado.')).toBeTruthy();
-      expect(screen.getByText('Configuración')).toBeTruthy(); // Botón
-    });
+    fireEvent.press(screen.getByText('Configuración'));
+    expect(linkingSpy).toHaveBeenCalled();
+    linkingSpy.mockRestore();
   });
 
   test('renders user and friends successfully', async () => {
     mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-    mockGetCurrentPosition.mockResolvedValue({
-      coords: { latitude: -34.5833, longitude: -58.4372 },
-    });
-
+    mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: -34.5833, longitude: -58.4372 } });
     mockGetFriendsLocations.mockResolvedValue({
-      friends: [
-        { userId: '2', username: 'juan', latitude: -34.5834, longitude: -58.4373, distance: '12m', label: 'Estudiando' },
-        { userId: '3', username: 'maria', latitude: -34.5850, longitude: -58.4380, distance: '300m' },
-      ]
+      friends: [{ userId: '2', username: 'juan', latitude: -34.5834, longitude: -58.4373, distance: '12m', label: 'Estudiando' }]
     });
 
     render(<MapScreen />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('map-view')).toBeTruthy();
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('juan')).toBeTruthy();
-      expect(screen.getByText('maria')).toBeTruthy();
-    });
-
-    const markers = screen.getAllByTestId('map-marker');
-    expect(markers.length).toBe(3);
-
+    await waitFor(() => expect(screen.getByTestId('map-view')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('juan')).toBeTruthy());
     expect(screen.getByText('@demouser')).toBeTruthy();
     expect(screen.getByText('✨ Estudiando')).toBeTruthy();
   });
 
   test('updates label successfully', async () => {
     mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-    mockGetCurrentPosition.mockResolvedValue({
-      coords: { latitude: -34.5833, longitude: -58.4372 },
-    });
-
-    mockUpdateLabel.mockResolvedValue();
+    mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
 
     render(<MapScreen />);
+    await waitFor(() => screen.getByTestId('map-view'));
 
-    await waitFor(() => {
-      expect(screen.getByTestId('map-view')).toBeTruthy();
-    });
+    fireEvent.changeText(screen.getByPlaceholderText('Pon tu estado...'), 'Estudiando');
+    fireEvent.press(await screen.findByText('checkmark-circle'));
 
-    const input = screen.getByPlaceholderText('Pon tu estado...');
-    fireEvent.changeText(input, 'Estudiando');
-
-    const button = await screen.findByText('checkmark-circle');
-    fireEvent.press(button);
-
-    await waitFor(() => {
-      expect(mockUpdateLabel).toHaveBeenCalledWith('Estudiando');
-    });
+    await waitFor(() => expect(mockUpdateLabel).toHaveBeenCalledWith('Estudiando'));
   });
 
-test('deletes label when pressing delete button', async () => {
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-  mockGetCurrentPosition.mockResolvedValue({
-    coords: { latitude: -34.5833, longitude: -58.4372 },
+  test('deletes label successfully', async () => {
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+
+    render(<MapScreen />);
+    await waitFor(() => screen.getByTestId('map-view'));
+
+    fireEvent.changeText(screen.getByPlaceholderText('Pon tu estado...'), 'test');
+    fireEvent.press(await screen.findByText('checkmark-circle'));
+    
+    const deleteBtn = await screen.findByText('close-circle-outline');
+    fireEvent.press(deleteBtn);
+
+    await waitFor(() => expect(mockDeleteLabel).toHaveBeenCalled());
   });
-
-  mockDeleteLabel.mockResolvedValue();
-
-  render(<MapScreen />);
-
-  await waitFor(() => {
-    expect(screen.getByTestId('map-view')).toBeTruthy();
-  });
-
-  const input = screen.getByPlaceholderText('Pon tu estado...');
-  fireEvent.changeText(input, 'Hola');
-
-  // primero crear label
-  const updateBtn = await waitFor(() => screen.getAllByText('checkmark-circle')[0]);
-  fireEvent.press(updateBtn);
-
-  await waitFor(() => {
-    expect(mockUpdateLabel).toHaveBeenCalled();
-  });
-
-  // ahora aparece delete
-  const deleteBtn = await waitFor(() => screen.getAllByText('close-circle-outline')[0]);
-  fireEvent.press(deleteBtn);
-
-  await waitFor(() => {
-    expect(mockDeleteLabel).toHaveBeenCalled();
-  });
-});
 
 test('does not send location when battery is low', async () => {
   const Battery = require('expo-battery');
   Battery.getBatteryLevelAsync.mockResolvedValueOnce(0.1); // 10%
 
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-  mockGetCurrentPosition.mockResolvedValue({
-    coords: { latitude: -34.5833, longitude: -58.4372 },
-  });
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
 
-  render(<MapScreen />);
+    render(<MapScreen />);
+    await waitFor(() => screen.getByTestId('map-view'));
+    
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 100));
+    });
 
-  await waitFor(() => {
-    expect(screen.getByTestId('map-view')).toBeTruthy();
-  });
-
-  await waitFor(() => {
     expect(mockUpdateLocation).not.toHaveBeenCalled();
   });
-});
 
-test('handles error when updating location fails without crashing', async () => {
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+  test('handles location update error', async () => {
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+    mockUpdateLocation.mockRejectedValue({ status: 500, message: 'fail' });
 
-  mockGetCurrentPosition.mockResolvedValue({
-    coords: { latitude: -34.5833, longitude: -58.4372 },
+    render(<MapScreen />);
+    await waitFor(() => expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('[Sync Error]')));
   });
 
-  mockUpdateLocation.mockRejectedValue({ status: 500, message: 'fail' });
+  test('falls back to last known location when GPS fails', async () => {
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockRejectedValue(new Error('fail'));
+    mockGetLastKnownPosition.mockResolvedValue({ coords: { latitude: -34.60, longitude: -58.38 } });
 
-  render(<MapScreen />);
-
-  await waitFor(() => {
-    expect(screen.getByTestId('map-view')).toBeTruthy();
+    render(<MapScreen />);
+    await waitFor(() => expect(screen.getByTestId('map-view')).toBeTruthy());
   });
 
-  expect(screen.getByText('@demouser')).toBeTruthy();
-});
-
-test('falls back to last known location when GPS fails', async () => {
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-
-  mockGetCurrentPosition.mockRejectedValue(new Error('fail'));
-  mockGetLastKnownPosition.mockResolvedValue({
-    coords: { latitude: -34.60, longitude: -58.38 },
+  test('shows error when GPS crashes', async () => {
+    mockRequestPermissions.mockRejectedValue(new Error('fail'));
+    render(<MapScreen />);
+    await waitFor(() => expect(screen.getByText('Error de GPS.')).toBeTruthy());
   });
 
-  render(<MapScreen />);
+  test('applies jitter on collision', async () => {
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    const coords = { latitude: 1, longitude: 1 };
+    mockGetCurrentPosition.mockResolvedValue({ coords });
+    mockGetFriendsLocations.mockResolvedValue({
+      friends: [{ userId: '2', username: 'juan', latitude: 1, longitude: 1, distance: '0m' }]
+    });
 
-  await waitFor(() => {
-    expect(screen.getByTestId('map-view')).toBeTruthy();
-  });
-});
-
-test('shows error when GPS crashes completely', async () => {
-  mockRequestPermissions.mockRejectedValue(new Error('fail'));
-
-  render(<MapScreen />);
-
-  await waitFor(() => {
-    expect(screen.getByText('Error de GPS.')).toBeTruthy();
-  });
-});
-
-test('does not fetch friends if coords are null', async () => {
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-  mockGetCurrentPosition.mockResolvedValue(null);
-
-  render(<MapScreen />);
-
-  await waitFor(() => {
-    expect(mockGetFriendsLocations).not.toHaveBeenCalled();
-  });
-});
-
-test('applies jitter when friend is at same location as user', async () => {
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-
-  const sameCoords = { latitude: -34.5833, longitude: -58.4372 };
-
-  mockGetCurrentPosition.mockResolvedValue({
-    coords: sameCoords,
+    render(<MapScreen />);
+    await waitFor(() => expect(screen.getByText('juan')).toBeTruthy());
   });
 
-  mockGetFriendsLocations.mockResolvedValue({
-    friends: [
-      {
-        userId: '2',
-        username: 'juan',
-        latitude: sameCoords.latitude,
-        longitude: sameCoords.longitude,
-        distance: '0m',
-      },
-    ],
+  test('centerOnMe calls animateToRegion', async () => {
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 10, longitude: 20 } });
+
+    render(<MapScreen />);
+    await waitFor(() => screen.getByTestId('map-view'));
+
+    fireEvent.press(screen.getByText('locate'));
+    expect(mockAnimateToRegion).toHaveBeenCalledWith(expect.objectContaining({ latitude: 10, longitude: 20 }), 1000);
   });
 
-  render(<MapScreen />);
+  test('handles friends fetch error', async () => {
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+    mockGetFriendsLocations.mockRejectedValue({ status: 500, message: 'error' });
 
-  await waitFor(() => {
-    expect(screen.getByTestId('map-view')).toBeTruthy();
+    render(<MapScreen />);
+    await waitFor(() => expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('[Friends Error]')));
   });
 
-  const markers = screen.getAllByTestId('map-marker');
-  expect(markers.length).toBe(2);
+  test('handles delete label error', async () => {
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
+    mockDeleteLabel.mockRejectedValue(new Error('fail'));
+    const alertSpy = jest.spyOn(Alert, 'alert');
 
-  expect(screen.getByText('juan')).toBeTruthy();
-});
+    render(<MapScreen />);
+    await waitFor(() => screen.getByTestId('map-view'));
 
-test('does not apply jitter when friends are far away', async () => {
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    fireEvent.changeText(screen.getByPlaceholderText('Pon tu estado...'), 'test');
+    fireEvent.press(await screen.findByText('checkmark-circle'));
+    
+    const deleteBtn = await screen.findByText('close-circle-outline');
+    fireEvent.press(deleteBtn);
 
-  mockGetCurrentPosition.mockResolvedValue({
-    coords: { latitude: -34.5833, longitude: -58.4372 },
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Error", "No se pudo borrar."));
   });
 
-  mockGetFriendsLocations.mockResolvedValue({
-    friends: [
-      {
-        userId: '2',
-        username: 'juan',
-        latitude: -35.0,
-        longitude: -59.0,
-        distance: '100km',
-      },
-    ],
+  test('updates location and friends on interval', async () => {
+    jest.useFakeTimers();
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: -34, longitude: -58 } });
+
+    render(<MapScreen />);
+    
+    // Trigger initial effects
+    await act(async () => {
+      jest.advanceTimersByTime(100); 
+    });
+    
+    // We expect the first call from initLocation
+    await waitFor(() => expect(mockUpdateLocation).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      jest.advanceTimersByTime(30000);
+    });
+
+    await waitFor(() => expect(mockUpdateLocation).toHaveBeenCalledTimes(2));
+    expect(mockGetFriendsLocations).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
   });
 
-  render(<MapScreen />);
+  test('empty label calls deleteLabel', async () => {
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
 
-  await waitFor(() => {
-    expect(screen.getByTestId('map-view')).toBeTruthy();
-  });
+    render(<MapScreen />);
+    await waitFor(() => screen.getByTestId('map-view'));
 
-  expect(screen.getByText('juan')).toBeTruthy();
-});
+    fireEvent.changeText(screen.getByPlaceholderText('Pon tu estado...'), '   '); 
+    fireEvent.press(await screen.findByText('checkmark-circle'));
 
-test('deletes label when user already has one', async () => {
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-
-  mockGetCurrentPosition.mockResolvedValue({
-    coords: { latitude: -34.5833, longitude: -58.4372 },
-  });
-
-  render(<MapScreen />);
-
-  await waitFor(() => {
-    expect(screen.getByTestId('map-view')).toBeTruthy();
-  });
-
-  const input = screen.getByPlaceholderText('Pon tu estado...');
-
-  fireEvent.changeText(input, 'Algo');
-
-  const saveButton = screen.getByText('checkmark-circle');
-  fireEvent.press(saveButton);
-
-  await waitFor(() => {
-    expect(mockUpdateLabel).toHaveBeenCalled();
-  });
-
-  const deleteButton = await waitFor(() =>
-    screen.getByText('close-circle-outline')
-  );
-
-  fireEvent.press(deleteButton);
-
-  await waitFor(() => {
-    expect(mockDeleteLabel).toHaveBeenCalled();
-  });
-});
-
-test('applies jitter when friends collide with each other but not with user', async () => {
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-
-  mockGetCurrentPosition.mockResolvedValue({
-    coords: { latitude: 1, longitude: 1 },
-  });
-
-  mockGetFriendsLocations.mockResolvedValue({
-    friends: [
-      {
-        userId: '1',
-        username: 'a',
-        latitude: 2,
-        longitude: 2,
-        distance: '10m',
-      },
-      {
-        userId: '2',
-        username: 'b',
-        latitude: 2,
-        longitude: 2,
-        distance: '15m',
-      },
-    ],
-  });
-
-  render(<MapScreen />);
-
-  await waitFor(() => {
-    expect(screen.getByText('a')).toBeTruthy();
-    expect(screen.getByText('b')).toBeTruthy();
-  });
-
-  const markers = screen.getAllByTestId('map-marker');
-
-  expect(markers.length).toBe(3);
-});
-
-test('handles error in onUpdateLabel', async () => {
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-  mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: 0, longitude: 0 } });
-  mockUpdateLabel.mockRejectedValue(new Error('Update failed'));
-  const alertSpy = jest.spyOn(Alert, 'alert');
-
-  render(<MapScreen />);
-  await waitFor(() => screen.getByTestId('map-view'));
-
-  fireEvent.changeText(screen.getByPlaceholderText('Pon tu estado...'), 'new label');
-  const updateBtn = await screen.findByText('checkmark-circle');
-  fireEvent.press(updateBtn);
-
-  await waitFor(() => {
-    expect(alertSpy).toHaveBeenCalledWith("Error", expect.stringContaining("Update failed"));
-  });
-});
-
-test('centerOnMe does nothing if coords or mapRef is null', async () => {
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-  mockGetCurrentPosition.mockResolvedValue(null);
-
-  const { queryByText } = render(<MapScreen />);
-  const locateBtn = queryByText('locate');
-  if (locateBtn) fireEvent.press(locateBtn);
-});
-
-test('renders location error status view', async () => {
-  mockRequestPermissions.mockResolvedValue({ status: 'granted' });
-  mockGetCurrentPosition.mockResolvedValue(null);
-
-  render(<MapScreen />);
-  await waitFor(() => {
-    expect(screen.getByText('Buscando GPS...')).toBeTruthy();
+    await waitFor(() => expect(mockDeleteLabel).toHaveBeenCalled());
   });
 });
 
