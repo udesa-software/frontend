@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
   Linking,
   Platform,
   Pressable,
@@ -22,6 +24,7 @@ import { CoordsCard, StatusView, SyncBadge } from '../components/MapComponents';
 
 const UPDATE_INTERVAL_MS = 30_000;
 const INITIAL_DELTA = { latitudeDelta: 0.01, longitudeDelta: 0.01 };
+const MAP_CONTROL_PADDING = { top: 50, right: 10, bottom: 160, left: 20 };
 
 
 
@@ -41,6 +44,7 @@ export function MapScreen() {
   const [myLabel, setMyLabel] = useState('');
   const [tempLabel, setTempLabel] = useState('');
   const [isUpdatingLabel, setIsUpdatingLabel] = useState(false);
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
 
   const mapRef = useRef(null);
   const coordsRef = useRef(null);
@@ -79,6 +83,7 @@ export function MapScreen() {
   }, []);
 
   const onUpdateLabel = async () => {
+    if (isUpdatingLabel) return;
     const text = tempLabel.trim();
     setIsUpdatingLabel(true);
     try {
@@ -221,6 +226,7 @@ export function MapScreen() {
           style={styles.map}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
           initialRegion={{ ...coords, ...INITIAL_DELTA }}
+          mapPadding={MAP_CONTROL_PADDING}
           showsCompass
         >
           {}
@@ -259,6 +265,14 @@ export function MapScreen() {
             );
           })}
         </MapView>
+
+        {isEditingLabel && (
+          <Pressable
+            style={styles.keyboardDismissOverlay}
+            onPress={Keyboard.dismiss}
+            testID="map-keyboard-dismiss-overlay"
+          />
+        )}
         
         {/* User Stats Floating */}
         <View style={styles.floatingHeader}>
@@ -270,17 +284,28 @@ export function MapScreen() {
         </View>
 
         {/* Floating Capsule Footer */}
-        <View style={styles.floatingFooter}>
+        <KeyboardAvoidingView
+          behavior="position"
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
+          pointerEvents="box-none"
+          style={styles.keyboardAvoidingFooter}
+          testID="map-keyboard-avoiding-footer"
+        >
+          <View style={styles.floatingFooter}>
             <View style={styles.tagCapsule}>
                 <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textMuted} />
                 <TextInput
+                    testID="map-label-input"
                     style={styles.labelTextInput}
                     value={tempLabel}
                     onChangeText={setTempLabel}
-                    placeholder={myLabel || "Pon tu estado..."}
+                    placeholder={myLabel || "Contale a tus amigos dónde estás..."}
                     placeholderTextColor={colors.textMuted}
                     maxLength={30}
                     returnKeyType="done"
+                    onSubmitEditing={onUpdateLabel}
+                    onFocus={() => setIsEditingLabel(true)}
+                    onBlur={() => setIsEditingLabel(false)}
                 />
                 
                 {isUpdatingLabel ? (
@@ -308,7 +333,8 @@ export function MapScreen() {
                     </View>
                 )}
             </View>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
 
         <Pressable style={styles.centerButton} onPress={centerOnMe}>
           <Ionicons name="locate" size={24} color={colors.primary} />
@@ -334,6 +360,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   mapWrapper: { flex: 1 },
   map: { flex: 1 },
+  keyboardDismissOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 5,
+  },
   miniMarker: {
     width: 14,
     height: 14,
@@ -380,9 +410,12 @@ const styles = StyleSheet.create({
   userHeaderInfo: { flex: 1 },
   greeting: { fontSize: fontSizes.md, fontWeight: '700', color: '#FFFFFE' },
 
-  floatingFooter: {
+  keyboardAvoidingFooter: {
     position: 'absolute', bottom: 30, left: 20, right: 20,
-    alignItems: 'center', zIndex: 10,
+    zIndex: 20,
+  },
+  floatingFooter: {
+    alignItems: 'center', zIndex: 20,
   },
   tagCapsule: {
     flexDirection: 'row', alignItems: 'center', 
@@ -401,6 +434,7 @@ const styles = StyleSheet.create({
 
   centerButton: {
     position: 'absolute', right: 20, bottom: 120,
+    zIndex: 10,
     backgroundColor: colors.surface, width: 48, height: 48, borderRadius: 24,
     justifyContent: 'center', alignItems: 'center', elevation: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84,
