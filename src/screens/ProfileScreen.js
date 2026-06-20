@@ -191,98 +191,104 @@ export function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.settingsIcon} 
-          onPress={() => navigation.navigate('Preferences')}
-        >
-          <Text style={{ fontSize: 24 }}>⚙️</Text>
-        </TouchableOpacity>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.settingsIcon}
+            onPress={() => navigation.navigate('Preferences')}
+          >
+            <Text style={{ fontSize: 24 }}>⚙️</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity testID="profile-photo-container" style={styles.profilePhotoContainer} onPress={handleSelectProfilePhoto} disabled={isSaving}>
-          {user.profile_photo_url ? (
-            <Image 
-              source={{ uri: getImageUrl(user.profile_photo_url) }} 
-              style={styles.profilePhotoImage} 
-              testID="profile-photo"
-            />
-          ) : (
-            <View style={styles.profilePhotoPlaceholder}>
-              <Text style={styles.profilePhotoText}>{user.username?.charAt(0).toUpperCase()}</Text>
+          <TouchableOpacity testID="profile-photo-container" style={styles.profilePhotoContainer} onPress={handleSelectProfilePhoto} disabled={isSaving}>
+            {user.profile_photo_url ? (
+              <Image
+                source={{ uri: getImageUrl(user.profile_photo_url) }}
+                style={styles.profilePhotoImage}
+                testID="profile-photo"
+              />
+            ) : (
+              <View style={styles.profilePhotoPlaceholder}>
+                <Text style={styles.profilePhotoText}>{user.username?.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+            <View style={styles.profilePhotoEditOverlay}>
+              <Text style={styles.profilePhotoEditOverlayText}>Editar</Text>
             </View>
-          )}
-          <View style={styles.profilePhotoEditOverlay}>
-            <Text style={styles.profilePhotoEditOverlayText}>Editar</Text>
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.username}>{user.username}</Text>
-        <Text style={styles.email}>{user.email}</Text>
-        {user.biography ? <Text style={styles.bio}>{user.biography}</Text> : null}
-        
-        <View style={styles.actionRow}>
-          <AppButton
-            title="Editar Perfil"
-            variant="secondary"
-            onPress={openEditModal}
-            style={styles.editBtn}
-          />
-          {user.profile_photo_url ? (
+          </TouchableOpacity>
+          <Text style={styles.username}>{user.username}</Text>
+          <Text style={styles.email}>{user.email}</Text>
+          {user.biography ? <Text style={styles.bio}>{user.biography}</Text> : null}
+
+          <View style={styles.actionRow}>
             <AppButton
-              title="Eliminar Foto"
+              title="Editar Perfil"
               variant="secondary"
-              onPress={handleDeleteProfilePhoto}
-              style={[styles.editBtn, styles.deleteProfilePhotoBtn]}
-              textStyle={{ color: colors.error }}
+              onPress={openEditModal}
+              style={styles.editBtn}
             />
-          ) : null}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Cuenta</Text>
-        <View style={styles.card}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>ID de Usuario</Text>
-            <Text style={styles.infoValue}>{user.id?.slice(0, 8)}...</Text>
-          </View>
-          <View style={[styles.infoRow, styles.lastRow]}>
-            <Text style={styles.infoLabel}>Rol</Text>
-            <Text style={styles.infoValue}>{user.role || 'Usuario'}</Text>
+            {user.profile_photo_url ? (
+              <AppButton
+                title="Eliminar Foto"
+                variant="secondary"
+                onPress={handleDeleteProfilePhoto}
+                style={[styles.editBtn, styles.deleteProfilePhotoBtn]}
+                textStyle={{ color: colors.error }}
+              />
+            ) : null}
           </View>
         </View>
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Seguridad</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Cuenta</Text>
+          <View style={styles.card}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>ID de Usuario</Text>
+              <Text style={styles.infoValue}>{user.id?.slice(0, 8)}...</Text>
+            </View>
+            <View style={[styles.infoRow, styles.lastRow]}>
+              <Text style={styles.infoLabel}>Rol</Text>
+              <Text style={styles.infoValue}>{user.role || 'Usuario'}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Seguridad</Text>
+          <AppButton
+            title="Cambiar Contraseña"
+            variant="secondary"
+            onPress={() => navigation.navigate('ChangePassword')}
+            style={styles.securityBtn}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, styles.dangerTitle]}>Zona de Peligro</Text>
+          <AppButton
+            title="Eliminar Cuenta"
+            variant="secondary"
+            onPress={() => setIsDeleteModalVisible(true)}
+            style={styles.deleteBtn}
+            // Idealmente tendríamos un variant 'danger' pero usaremos estilos manuales por ahora
+            textStyle={{ color: colors.error }}
+          />
+          <Text style={styles.dangerNote}>
+            Esta acción es permanente y borrará todos tus datos.
+          </Text>
+        </View>
+
         <AppButton
-          title="Cambiar Contraseña"
-          variant="secondary"
-          onPress={() => navigation.navigate('ChangePassword')}
-          style={styles.securityBtn}
+          title="Cerrar Sesión"
+          variant="text"
+          onPress={logout}
+          style={styles.logoutBtn}
         />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, styles.dangerTitle]}>Zona de Peligro</Text>
-        <AppButton
-          title="Eliminar Cuenta"
-          variant="secondary"
-          onPress={() => setIsDeleteModalVisible(true)}
-          style={styles.deleteBtn}
-          // Idealmente tendríamos un variant 'danger' pero usaremos estilos manuales por ahora
-          textStyle={{ color: colors.error }}
-        />
-        <Text style={styles.dangerNote}>
-          Esta acción es permanente y borrará todos tus datos.
-        </Text>
-      </View>
-
-      <AppButton
-        title="Cerrar Sesión"
-        variant="text"
-        onPress={logout}
-        style={styles.logoutBtn}
-      />
+      </ScrollView>
 
       {/* Modal de Edición de Perfil */}
       <Modal
@@ -402,7 +408,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   header: {
     alignItems: 'center',
@@ -558,7 +568,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   logoutBtn: {
-    marginTop: 'auto',
+    marginTop: spacing.sm,
     marginBottom: spacing.lg,
   },
   modalOverlay: {
