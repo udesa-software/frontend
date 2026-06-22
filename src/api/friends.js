@@ -44,4 +44,8 @@ export const friendsApi = {
   // DELETE /api/friends/block/:blockedId
   unblockUser: (blockedId) =>
     apiClient.delete(`/friends/block/${blockedId}`),
+
+  // POST /api/friends/reports — H9: denunciar usuario
+  reportUser: (reportedId, reportedUsername, reason) =>
+    apiClient.post('/friends/reports', { reportedId, reportedUsername, reason }),
 };

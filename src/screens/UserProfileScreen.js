@@ -7,12 +7,22 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Modal,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 import { getFriendProfile } from '../api/location';
 import { colors, spacing, fontSizes, radii } from '../theme';
+
+// H9: motivos de denuncia — valor enviado al backend (debe matchear reports.schemas.js) + label visible
+const REPORT_REASONS = [
+  { value: 'inappropriate_content', label: 'Contenido inapropiado' },
+  { value: 'harassment', label: 'Acoso o comportamiento abusivo' },
+  { value: 'spam', label: 'Spam' },
+  { value: 'fake_profile', label: 'Perfil falso' },
+  { value: 'other', label: 'Otro' },
+];
 
 function formatTimeAgo(dateString) {
   if (!dateString) return null;
@@ -50,6 +60,7 @@ export function UserProfileScreen() {
   const [locationData, setLocationData]     = useState(null); // { isHistoryPrivate, location_history }
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [actionLoading, setActionLoading]   = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   // ── Carga inicial ──────────────────────────────────────────────────────────
   const loadAll = useCallback(async () => {
@@ -198,6 +209,18 @@ export function UserProfileScreen() {
       setRelationship({ status: 'none' });
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'No se pudo desbloquear al usuario');
+    }
+  };
+
+  // H9: denunciar usuario — abre el selector de motivo
+  const handleReportReason = async (reason) => {
+    const name = profile?.username || initialUsername || 'este usuario';
+    setReportModalVisible(false);
+    try {
+      await friendsApi.reportUser(userId, name, reason);
+      Alert.alert('Denuncia enviada', `Gracias por reportar a ${name}. Vamos a revisar el caso.`);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || err.message || 'No se pudo enviar la denuncia');
     }
   };
 
@@ -412,11 +435,52 @@ export function UserProfileScreen() {
                   <Text style={styles.blockBtnText}>Bloquear usuario</Text>
                 </TouchableOpacity>
               )}
+
+              {/* H9: denunciar usuario — disponible incluso si ya está bloqueado */}
+              <TouchableOpacity
+                testID="action-report"
+                style={styles.reportBtn}
+                onPress={() => setReportModalVisible(true)}
+              >
+                <Text style={styles.reportBtnText}>Denunciar usuario</Text>
+              </TouchableOpacity>
             </View>
           )}
 
         </ScrollView>
       )}
+
+      {/* H9: selector de motivo de denuncia */}
+      <Modal
+        visible={reportModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Denunciar usuario</Text>
+            <Text style={styles.modalSubtitle}>Elegí el motivo de la denuncia</Text>
+            {REPORT_REASONS.map((r) => (
+              <TouchableOpacity
+                key={r.value}
+                testID={`report-reason-${r.value}`}
+                style={styles.reasonOption}
+                onPress={() => handleReportReason(r.value)}
+              >
+                <Text style={styles.reasonOptionText}>{r.label}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              testID="report-cancel"
+              style={styles.reasonCancel}
+              onPress={() => setReportModalVisible(false)}
+            >
+              <Text style={styles.reasonCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -591,5 +655,63 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     fontWeight: '600',
     textTransform: 'uppercase',
+  },
+
+  reportBtn: {
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  reportBtnText: {
+    color: '#f97316', // Orange-500 — consistente con el badge "En revisión" del backoffice
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+  },
+  modalTitle: {
+    fontSize: fontSizes.xl,
+    color: colors.text,
+    fontWeight: 'bold',
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  reasonOption: {
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  reasonOptionText: {
+    fontSize: fontSizes.md,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  reasonCancel: {
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  reasonCancelText: {
+    fontSize: fontSizes.md,
+    color: colors.textMuted,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

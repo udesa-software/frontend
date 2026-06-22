@@ -92,4 +92,15 @@ describe('friendsApi', () => {
     await friendsApi.unblockUser('baduser');
     expect(apiClient.delete).toHaveBeenCalledWith('/friends/block/baduser');
   });
+
+  it('reportUser calls post /friends/reports', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { message: 'Denuncia enviada' } });
+    const res = await friendsApi.reportUser('baduser', 'baduser_name', 'harassment');
+    expect(apiClient.post).toHaveBeenCalledWith('/friends/reports', {
+      reportedId: 'baduser',
+      reportedUsername: 'baduser_name',
+      reason: 'harassment',
+    });
+    expect(res.data.message).toBe('Denuncia enviada');
+  });
 });
