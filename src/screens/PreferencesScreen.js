@@ -5,15 +5,11 @@ import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
 import { colors, spacing, fontSizes, radii } from '../theme';
 import { usersApi } from '../api/users';
-import { getPrivacyStatus, setPrivacyStatus, updatePinColor } from '../api/location';
+import { getPrivacyStatus, setPrivacyStatus, getPinColor, updatePinColor } from '../api/location';
+import { PIN_COLORS, PIN_COLOR_KEY, DEFAULT_PIN_COLOR } from '../constants/pinColors';
 import { useNavigation } from '@react-navigation/native';
 
 const ALLOWED_FREQUENCIES = [5, 15, 30];
-
-// H9 CA.1: paleta predefinida de 5 colores para el pin
-const PIN_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
-const PIN_COLOR_KEY = '@pin_color';
-const DEFAULT_PIN_COLOR = '#FF6B6B';
 
 export function PreferencesScreen() {
   const navigation = useNavigation();
@@ -34,11 +30,11 @@ export function PreferencesScreen() {
       try {
         setIsLoading(true);
         const [settledResults, storedColor] = await Promise.all([
-          Promise.allSettled([usersApi.getPreferences(), getPrivacyStatus()]),
+          Promise.allSettled([usersApi.getPreferences(), getPrivacyStatus(), getPinColor()]),
           AsyncStorage.getItem(PIN_COLOR_KEY),
         ]);
 
-        const [prefsSettle, privacySettle] = settledResults;
+        const [prefsSettle, privacySettle, pinColorSettle] = settledResults;
 
         if (prefsSettle.status === 'fulfilled') {
           const data = prefsSettle.value.data;
@@ -58,7 +54,12 @@ export function PreferencesScreen() {
           }
         }
 
-        if (storedColor && PIN_COLORS.includes(storedColor)) {
+        // Backend es fuente de verdad; AsyncStorage como fallback si falla o no tiene ubicación
+        if (pinColorSettle.status === 'fulfilled' && PIN_COLORS.includes(pinColorSettle.value?.pinColor)) {
+          const backendColor = pinColorSettle.value.pinColor;
+          setPinColor(backendColor);
+          await AsyncStorage.setItem(PIN_COLOR_KEY, backendColor).catch(() => {});
+        } else if (storedColor && PIN_COLORS.includes(storedColor)) {
           setPinColor(storedColor);
         }
       } catch (err) {

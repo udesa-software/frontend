@@ -123,6 +123,11 @@ export async function getRadar({ latitude, longitude }) {
  * @param {string} pinColor - Hex del color (ej: '#FF6B6B')
  * @returns {Promise<Object>} { message, pinColor }
  */
+export async function getPinColor() {
+  const response = await apiClient.get('/locations/pin-color');
+  return response.data;
+}
+
 export async function updatePinColor(pinColor) {
   const response = await apiClient.patch('/locations/pin-color', { pinColor });
   return response.data;
