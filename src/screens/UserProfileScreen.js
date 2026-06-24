@@ -12,7 +12,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 import { getFriendProfile } from '../api/location';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 
 function formatTimeAgo(dateString) {
   if (!dateString) return null;
@@ -50,6 +50,8 @@ export function UserProfileScreen() {
   const [locationData, setLocationData]     = useState(null); // { isHistoryPrivate, location_history }
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [actionLoading, setActionLoading]   = useState(false);
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
 
   // ── Carga inicial ──────────────────────────────────────────────────────────
   const loadAll = useCallback(async () => {
@@ -425,7 +427,7 @@ export function UserProfileScreen() {
 const AVATAR_SIZE = 88;
 const DOT_SIZE    = 18;
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
 
   header: {

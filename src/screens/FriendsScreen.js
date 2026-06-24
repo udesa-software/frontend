@@ -6,7 +6,7 @@ import { AppButton } from '../components/AppButton';
 import { PendingRequestsList } from '../components/PendingRequestsList';
 import { FriendsList } from '../components/FriendsList';
 import { NearbyUsersList } from '../components/NearbyUsersList';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 
@@ -15,6 +15,8 @@ export function FriendsScreen() {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('friends'); // 'friends' | 'search' | 'pending'
   const [searchQuery, setSearchQuery] = useState('');
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
 
   useEffect(() => {
     if (route.params?.activeTab) {
@@ -246,7 +248,7 @@ export function FriendsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

@@ -4,13 +4,15 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import * as ImagePicker from 'expo-image-picker';
 import { getImageUrl } from '../api/client';
 
 export function ProfileScreen() {
   const { user, logout, deleteAccount, updateProfile, uploadProfilePhoto, deleteProfilePhoto } = useAuth();
   const navigation = useNavigation();
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
 
   const handleSelectProfilePhoto = async () => {
     console.log('handleSelectProfilePhoto CALLED');
@@ -404,7 +406,7 @@ export function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

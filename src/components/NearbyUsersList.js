@@ -11,7 +11,7 @@ import {
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
 import { AppButton } from './AppButton';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { getRadar } from '../api/location';
 import { friendsApi } from '../api/friends';
 
@@ -21,6 +21,8 @@ export function NearbyUsersList() {
   const [isLoading, setIsLoading] = useState(true);
   const [actionsLoading, setActionsLoading] = useState({});
   const [relationshipStatuses, setRelationshipStatuses] = useState({});
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
 
   const fetchNearby = useCallback(async () => {
     setIsLoading(true);
@@ -210,7 +212,7 @@ export function NearbyUsersList() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   loader: {
     marginVertical: spacing.xl,
   },

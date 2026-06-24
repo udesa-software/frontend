@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity, Image } from 'react-native';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
-import { colors, spacing, fontSizes } from '../theme';
+import { spacing, fontSizes, useTheme } from '../theme/index';
 import { usersApi } from '../api/users';
 
 export function RegisterScreen({ navigation }) {
@@ -11,6 +11,9 @@ export function RegisterScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   const [fieldErrors, setFieldErrors] = useState({});
   const [generalError, setGeneralError] = useState(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -140,7 +143,7 @@ export function RegisterScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
