@@ -2,7 +2,7 @@ import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { PreferencesScreen } from '../../src/screens/PreferencesScreen';
 import { usersApi } from '../../src/api/users';
-import { getPrivacyStatus, setPrivacyStatus, updatePinColor } from '../../src/api/location';
+import { getPrivacyStatus, setPrivacyStatus, getPinColor, updatePinColor } from '../../src/api/location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -24,6 +24,7 @@ jest.mock('../../src/api/users', () => ({
 jest.mock('../../src/api/location', () => ({
   getPrivacyStatus: jest.fn(),
   setPrivacyStatus: jest.fn(),
+  getPinColor: jest.fn(),
   updatePinColor: jest.fn(),
 }));
 
@@ -39,6 +40,7 @@ describe('PreferencesScreen', () => {
     jest.clearAllMocks();
     usersApi.getPreferences.mockResolvedValue(mockPrefs);
     getPrivacyStatus.mockResolvedValue({ isPrivate: false });
+    getPinColor.mockResolvedValue({ pinColor: null });
     updatePinColor.mockResolvedValue({ message: 'Color de pin actualizado', pinColor: '#FF6B6B' });
     AsyncStorage._reset();
   });
