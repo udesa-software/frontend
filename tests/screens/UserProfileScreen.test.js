@@ -430,4 +430,73 @@ describe('UserProfileScreen', () => {
     fireEvent.press(await findByTestId('report-cancel'));
     expect(friendsApi.reportUser).not.toHaveBeenCalled();
   });
+
+  // ── H9: motivo "Otro" con descripción libre ─────────────────────────────────
+
+  it('tapping "Otro" shows the free-text input instead of sending immediately', async () => {
+    const { findByText, findByTestId, queryByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-other'));
+
+    expect(await findByTestId('report-other-input')).toBeTruthy();
+    expect(friendsApi.reportUser).not.toHaveBeenCalled();
+    expect(queryByTestId('report-reason-harassment')).toBeNull();
+  });
+
+  it('submit is disabled while the free-text field is empty', async () => {
+    const { findByText, findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-other'));
+
+    fireEvent.press(await findByTestId('report-other-submit'));
+    expect(friendsApi.reportUser).not.toHaveBeenCalled();
+  });
+
+  it('handleSubmitOtherReason: sends reportUser with reason "other" and the typed detail', async () => {
+    friendsApi.reportUser.mockResolvedValue({ data: { message: 'Denuncia enviada' } });
+    const spy = jest.spyOn(Alert, 'alert');
+    const { findByText, findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-other'));
+
+    fireEvent.changeText(await findByTestId('report-other-input'), '  Me mandó mensajes amenazantes  ');
+    fireEvent.press(await findByTestId('report-other-submit'));
+
+    await waitFor(() =>
+      expect(friendsApi.reportUser).toHaveBeenCalledWith(
+        'user-1', 'juan', 'other', 'Me mandó mensajes amenazantes'
+      )
+    );
+    await waitFor(() => expect(spy).toHaveBeenCalledWith('Denuncia enviada', expect.any(String)));
+  });
+
+  it('handleSubmitOtherReason: shows alert on reportUser error', async () => {
+    friendsApi.reportUser.mockRejectedValueOnce({
+      response: { data: { error: 'Debés describir el motivo de la denuncia' } },
+    });
+    const spy = jest.spyOn(Alert, 'alert');
+    const { findByText, findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-other'));
+
+    fireEvent.changeText(await findByTestId('report-other-input'), 'Detalle del caso');
+    fireEvent.press(await findByTestId('report-other-submit'));
+
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith('Error', 'Debés describir el motivo de la denuncia')
+    );
+  });
+
+  it('report-cancel from the free-text step resets back to the reason list on reopen', async () => {
+    const { findByText, findByTestId, queryByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-other'));
+    fireEvent.changeText(await findByTestId('report-other-input'), 'texto que se debería perder');
+    fireEvent.press(await findByTestId('report-cancel'));
+
+    fireEvent.press(await findByText('Denunciar usuario'));
+    expect(await findByTestId('report-reason-other')).toBeTruthy();
+    expect(queryByTestId('report-other-input')).toBeNull();
+    expect(friendsApi.reportUser).not.toHaveBeenCalled();
+  });
 });

@@ -103,4 +103,15 @@ describe('friendsApi', () => {
     });
     expect(res.data.message).toBe('Denuncia enviada');
   });
+
+  it('reportUser includes reasonDetail when reason is "other"', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { message: 'Denuncia enviada' } });
+    await friendsApi.reportUser('baduser', 'baduser_name', 'other', 'Me acosó por DM');
+    expect(apiClient.post).toHaveBeenCalledWith('/friends/reports', {
+      reportedId: 'baduser',
+      reportedUsername: 'baduser_name',
+      reason: 'other',
+      reasonDetail: 'Me acosó por DM',
+    });
+  });
 });

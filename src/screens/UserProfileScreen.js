@@ -8,6 +8,9 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usersApi } from '../api/users';
@@ -61,6 +64,8 @@ export function UserProfileScreen() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [actionLoading, setActionLoading]   = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportingOther, setReportingOther] = useState(false);
+  const [reasonDetail, setReasonDetail] = useState('');
 
   // ── Carga inicial ──────────────────────────────────────────────────────────
   const loadAll = useCallback(async () => {
@@ -212,12 +217,34 @@ export function UserProfileScreen() {
     }
   };
 
-  // H9: denunciar usuario — abre el selector de motivo
+  // H9: cierra el modal de denuncia y resetea el paso del texto libre, para que la
+  // próxima vez que se abra vuelva a arrancar en la lista de motivos.
+  const closeReportModal = () => {
+    setReportModalVisible(false);
+    setReportingOther(false);
+    setReasonDetail('');
+  };
+
+  // H9: denunciar usuario — motivos de la lista fija (no aplica a "Otro", ver handleSubmitOtherReason)
   const handleReportReason = async (reason) => {
     const name = profile?.username || initialUsername || 'este usuario';
-    setReportModalVisible(false);
+    closeReportModal();
     try {
       await friendsApi.reportUser(userId, name, reason);
+      Alert.alert('Denuncia enviada', `Gracias por reportar a ${name}. Vamos a revisar el caso.`);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || err.message || 'No se pudo enviar la denuncia');
+    }
+  };
+
+  // H9: denunciar usuario con motivo "Otro" — requiere descripción libre
+  const handleSubmitOtherReason = async () => {
+    const detail = reasonDetail.trim();
+    if (!detail) return;
+    const name = profile?.username || initialUsername || 'este usuario';
+    closeReportModal();
+    try {
+      await friendsApi.reportUser(userId, name, 'other', detail);
       Alert.alert('Denuncia enviada', `Gracias por reportar a ${name}. Vamos a revisar el caso.`);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || err.message || 'No se pudo enviar la denuncia');
@@ -450,36 +477,66 @@ export function UserProfileScreen() {
         </ScrollView>
       )}
 
-      {/* H9: selector de motivo de denuncia */}
+      {/* H9: selector de motivo de denuncia (o descripción libre si el motivo es "Otro") */}
       <Modal
         visible={reportModalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setReportModalVisible(false)}
+        onRequestClose={closeReportModal}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Denunciar usuario</Text>
-            <Text style={styles.modalSubtitle}>Elegí el motivo de la denuncia</Text>
-            {REPORT_REASONS.map((r) => (
-              <TouchableOpacity
-                key={r.value}
-                testID={`report-reason-${r.value}`}
-                style={styles.reasonOption}
-                onPress={() => handleReportReason(r.value)}
-              >
-                <Text style={styles.reasonOptionText}>{r.label}</Text>
-              </TouchableOpacity>
-            ))}
+            {!reportingOther ? (
+              <>
+                <Text style={styles.modalSubtitle}>Elegí el motivo de la denuncia</Text>
+                {REPORT_REASONS.map((r) => (
+                  <TouchableOpacity
+                    key={r.value}
+                    testID={`report-reason-${r.value}`}
+                    style={styles.reasonOption}
+                    onPress={() => (r.value === 'other' ? setReportingOther(true) : handleReportReason(r.value))}
+                  >
+                    <Text style={styles.reasonOptionText}>{r.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalSubtitle}>Contanos qué pasó</Text>
+                <TextInput
+                  testID="report-other-input"
+                  style={styles.otherReasonInput}
+                  placeholder="Describí el motivo de la denuncia..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  maxLength={500}
+                  value={reasonDetail}
+                  onChangeText={setReasonDetail}
+                  autoFocus
+                />
+                <TouchableOpacity
+                  testID="report-other-submit"
+                  style={[styles.reasonOption, !reasonDetail.trim() && styles.reasonOptionDisabled]}
+                  disabled={!reasonDetail.trim()}
+                  onPress={handleSubmitOtherReason}
+                >
+                  <Text style={styles.reasonOptionText}>Enviar denuncia</Text>
+                </TouchableOpacity>
+              </>
+            )}
             <TouchableOpacity
               testID="report-cancel"
               style={styles.reasonCancel}
-              onPress={() => setReportModalVisible(false)}
+              onPress={closeReportModal}
             >
               <Text style={styles.reasonCancelText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -699,10 +756,26 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  reasonOptionDisabled: {
+    opacity: 0.4,
+  },
   reasonOptionText: {
     fontSize: fontSizes.md,
     color: colors.text,
     textAlign: 'center',
+  },
+  otherReasonInput: {
+    minHeight: 90,
+    maxHeight: 160,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    color: colors.text,
+    fontSize: fontSizes.md,
+    padding: spacing.md,
+    textAlignVertical: 'top',
+    marginBottom: spacing.md,
   },
   reasonCancel: {
     paddingVertical: spacing.md,
