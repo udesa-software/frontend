@@ -18,7 +18,7 @@ import MapView, { Marker, Callout, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'rea
 import { useAuth } from '../context/AuthContext';
 import { useRoute } from '@react-navigation/native';
 import { updateLocation, getFriendsLocations, updateLabel, deleteLabel } from '../api/location';
-import { colors, fontSizes, radii, spacing } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { Ionicons } from '@expo/vector-icons';
 import { CoordsCard, StatusView, SyncBadge } from '../components/MapComponents';
 
@@ -38,6 +38,8 @@ export function MapScreen() {
   const [locationError, setLocationError] = useState(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [syncStatus, setSyncStatus] = useState('idle');
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   const [lastSent, setLastSent] = useState(null);
   const [friends, setFriends] = useState([]);
   
@@ -356,7 +358,7 @@ export function MapScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   mapWrapper: { flex: 1 },
   map: { flex: 1 },

@@ -234,6 +234,7 @@ export function DiscoverScreen() {
           return (
             <Animated.View
               key={item.id}
+              testID="recommendation-card"
               style={[getCardStyle(), styles.cardStyle, { zIndex: 99 }]}
               {...panResponder.panHandlers}
             >

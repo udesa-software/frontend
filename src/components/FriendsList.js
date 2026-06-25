@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshCont
 import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { AppButton } from './AppButton';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { friendsApi } from '../api/friends';
 import { getFriendsLocations } from '../api/location';
 
@@ -16,6 +16,8 @@ export function FriendsList({ onGoToSearch }) {
   const [hasMore, setHasMore] = useState(true);
   const [sortBy, setSortBy] = useState('alphabetical'); // 'alphabetical' | 'proximity'
   const [removingId, setRemovingId] = useState(null);
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
 
   const fetchFriends = useCallback(async (pageNum, sortParam, isRefresh = false) => {
     if (loading || (!hasMore && !isRefresh)) return;
@@ -248,7 +250,7 @@ export function FriendsList({ onGoToSearch }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
   },

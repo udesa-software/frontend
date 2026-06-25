@@ -194,13 +194,10 @@ describe('PreferencesScreen', () => {
       getPrivacyStatus.mockResolvedValueOnce({ isPrivate: false });
       setPrivacyStatus.mockResolvedValueOnce({ isPrivate: true });
       
-      const { getByRole, findByText } = render(<PreferencesScreen />);
+      const { getByTestId, findByText } = render(<PreferencesScreen />);
       
-      // En React Native, el Switch se puede encontrar por role 'switch' (en algunas versiones/entornos) 
-      // o simplemente interactuando con él si es el único.
-      // Aquí usaremos waitFor para asegurar que cargó
       await findByText('Modo Privado ⚡');
-      const switchEl = getByRole('switch');
+      const switchEl = getByTestId('privacy-switch');
       
       await act(async () => {
         fireEvent(switchEl, 'onValueChange', true);
@@ -214,10 +211,10 @@ describe('PreferencesScreen', () => {
       getPrivacyStatus.mockResolvedValueOnce({ isPrivate: false });
       setPrivacyStatus.mockRejectedValueOnce(new Error('API Error'));
       
-      const { getByRole, findByText } = render(<PreferencesScreen />);
+      const { getByTestId, findByText } = render(<PreferencesScreen />);
       
       await findByText('Modo Privado ⚡');
-      const switchEl = getByRole('switch');
+      const switchEl = getByTestId('privacy-switch');
       
       // Initially false
       expect(switchEl.props.value).toBe(false);

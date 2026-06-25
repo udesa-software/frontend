@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Image } from 'react-native';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
-import { colors, spacing, fontSizes } from '../theme';
+import { spacing, fontSizes, useTheme } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../api/auth';
 
 export function LoginScreen({ navigation, route }) {
   const { login } = useAuth();
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -145,7 +147,7 @@ export function LoginScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
