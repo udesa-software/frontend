@@ -7,12 +7,25 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 import { getFriendProfile } from '../api/location';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
+
+// H9: motivos de denuncia — valor enviado al backend (debe matchear reports.schemas.js) + label visible
+const REPORT_REASONS = [
+  { value: 'inappropriate_content', label: 'Contenido inapropiado' },
+  { value: 'harassment', label: 'Acoso o comportamiento abusivo' },
+  { value: 'spam', label: 'Spam' },
+  { value: 'fake_profile', label: 'Perfil falso' },
+  { value: 'other', label: 'Otro' },
+];
 
 function formatTimeAgo(dateString) {
   if (!dateString) return null;
@@ -50,6 +63,9 @@ export function UserProfileScreen() {
   const [locationData, setLocationData]     = useState(null); // { isHistoryPrivate, location_history }
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [actionLoading, setActionLoading]   = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportingOther, setReportingOther] = useState(false);
+  const [reasonDetail, setReasonDetail] = useState('');
   const { colors } = useTheme();
   const styles = getStyles(colors);
 
@@ -200,6 +216,40 @@ export function UserProfileScreen() {
       setRelationship({ status: 'none' });
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'No se pudo desbloquear al usuario');
+    }
+  };
+
+  // H9: cierra el modal de denuncia y resetea el paso del texto libre, para que la
+  // próxima vez que se abra vuelva a arrancar en la lista de motivos.
+  const closeReportModal = () => {
+    setReportModalVisible(false);
+    setReportingOther(false);
+    setReasonDetail('');
+  };
+
+  // H9: denunciar usuario — motivos de la lista fija (no aplica a "Otro", ver handleSubmitOtherReason)
+  const handleReportReason = async (reason) => {
+    const name = profile?.username || initialUsername || 'este usuario';
+    closeReportModal();
+    try {
+      await friendsApi.reportUser(userId, name, reason);
+      Alert.alert('Denuncia enviada', `Gracias por reportar a ${name}. Vamos a revisar el caso.`);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || err.message || 'No se pudo enviar la denuncia');
+    }
+  };
+
+  // H9: denunciar usuario con motivo "Otro" — requiere descripción libre
+  const handleSubmitOtherReason = async () => {
+    const detail = reasonDetail.trim();
+    if (!detail) return;
+    const name = profile?.username || initialUsername || 'este usuario';
+    closeReportModal();
+    try {
+      await friendsApi.reportUser(userId, name, 'other', detail);
+      Alert.alert('Denuncia enviada', `Gracias por reportar a ${name}. Vamos a revisar el caso.`);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || err.message || 'No se pudo enviar la denuncia');
     }
   };
 
@@ -414,11 +464,82 @@ export function UserProfileScreen() {
                   <Text style={styles.blockBtnText}>Bloquear usuario</Text>
                 </TouchableOpacity>
               )}
+
+              {/* H9: denunciar usuario — disponible incluso si ya está bloqueado */}
+              <TouchableOpacity
+                testID="action-report"
+                style={styles.reportBtn}
+                onPress={() => setReportModalVisible(true)}
+              >
+                <Text style={styles.reportBtnText}>Denunciar usuario</Text>
+              </TouchableOpacity>
             </View>
           )}
 
         </ScrollView>
       )}
+
+      {/* H9: selector de motivo de denuncia (o descripción libre si el motivo es "Otro") */}
+      <Modal
+        visible={reportModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeReportModal}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Denunciar usuario</Text>
+            {!reportingOther ? (
+              <>
+                <Text style={styles.modalSubtitle}>Elegí el motivo de la denuncia</Text>
+                {REPORT_REASONS.map((r) => (
+                  <TouchableOpacity
+                    key={r.value}
+                    testID={`report-reason-${r.value}`}
+                    style={styles.reasonOption}
+                    onPress={() => (r.value === 'other' ? setReportingOther(true) : handleReportReason(r.value))}
+                  >
+                    <Text style={styles.reasonOptionText}>{r.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalSubtitle}>Contanos qué pasó</Text>
+                <TextInput
+                  testID="report-other-input"
+                  style={styles.otherReasonInput}
+                  placeholder="Describí el motivo de la denuncia..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  maxLength={500}
+                  value={reasonDetail}
+                  onChangeText={setReasonDetail}
+                  autoFocus
+                />
+                <TouchableOpacity
+                  testID="report-other-submit"
+                  style={[styles.reasonOption, !reasonDetail.trim() && styles.reasonOptionDisabled]}
+                  disabled={!reasonDetail.trim()}
+                  onPress={handleSubmitOtherReason}
+                >
+                  <Text style={styles.reasonOptionText}>Enviar denuncia</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            <TouchableOpacity
+              testID="report-cancel"
+              style={styles.reasonCancel}
+              onPress={closeReportModal}
+            >
+              <Text style={styles.reasonCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -593,5 +714,79 @@ const getStyles = (colors) => StyleSheet.create({
     fontSize: fontSizes.sm,
     fontWeight: '600',
     textTransform: 'uppercase',
+  },
+
+  reportBtn: {
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  reportBtnText: {
+    color: '#f97316', // Orange-500 — consistente con el badge "En revisión" del backoffice
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+  },
+  modalTitle: {
+    fontSize: fontSizes.xl,
+    color: colors.text,
+    fontWeight: 'bold',
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  reasonOption: {
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  reasonOptionDisabled: {
+    opacity: 0.4,
+  },
+  reasonOptionText: {
+    fontSize: fontSizes.md,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  otherReasonInput: {
+    minHeight: 90,
+    maxHeight: 160,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    color: colors.text,
+    fontSize: fontSizes.md,
+    padding: spacing.md,
+    textAlignVertical: 'top',
+    marginBottom: spacing.md,
+  },
+  reasonCancel: {
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  reasonCancelText: {
+    fontSize: fontSizes.md,
+    color: colors.textMuted,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
