@@ -9,7 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { getImageUrl } from '../api/client';
 
 export function ProfileScreen() {
-  const { user, logout, deleteAccount, updateProfile, uploadProfilePhoto, deleteProfilePhoto } = useAuth();
+  const { user, logout, deleteAccount, updateProfile, prepareAvatarUpload, confirmAvatarUpload, deleteProfilePhoto } = useAuth();
   const navigation = useNavigation();
   const { colors } = useTheme();
   const styles = getStyles(colors);
@@ -49,12 +49,11 @@ export function ProfileScreen() {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        base64: true,
       });
 
       if (!result.canceled && result.assets?.length > 0) {
         const asset = result.assets[0];
-        await uploadImage(asset.base64, asset.mimeType || 'image/jpeg');
+        await uploadImage(asset.uri, asset.mimeType || 'image/jpeg');
       }
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo seleccionar la imagen');
@@ -73,28 +72,39 @@ export function ProfileScreen() {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        base64: true,
       });
 
       if (!result.canceled && result.assets?.length > 0) {
         const asset = result.assets[0];
-        await uploadImage(asset.base64, asset.mimeType || 'image/jpeg');
+        await uploadImage(asset.uri, asset.mimeType || 'image/jpeg');
       }
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo tomar la foto');
     }
   };
 
-  const uploadImage = async (base64Data, mimeType) => {
+  const uploadImage = async (fileUri, mimeType) => {
     try {
       setIsSaving(true);
 
-      if (!base64Data) {
-        Alert.alert('Error', 'No se pudo leer la imagen.');
-        return;
+      // Paso 1: pedir signed URL al backend (request chico, pasa el WAF)
+      const { data: prepareData } = await prepareAvatarUpload(mimeType);
+      const { signedUrl, filename } = prepareData;
+
+      // Paso 2: subir directo a Supabase (bypassa el AWS WAF del ALB)
+      const fileResponse = await fetch(fileUri);
+      const blob = await fileResponse.blob();
+      const uploadRes = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': mimeType },
+        body: blob,
+      });
+      if (!uploadRes.ok) {
+        throw new Error('Error al subir la imagen al almacenamiento.');
       }
 
-      await uploadProfilePhoto({ photo: base64Data, mimeType });
+      // Paso 3: confirmar al backend (request chico, pasa el WAF)
+      await confirmAvatarUpload(filename);
       Alert.alert('Éxito', 'Foto de perfil actualizada correctamente.');
     } catch (err) {
       const errMsg = err?.message || 'Error al subir foto.';

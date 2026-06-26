@@ -29,13 +29,17 @@ export const usersApi = {
   heartbeat: () =>
     apiClient.post('/users/heartbeat'),
 
-  // H8: sube la foto como base64 JSON para atravesar proxies/WAF que bloquean multipart
-  uploadProfilePhoto: ({ photo, mimeType }) =>
-    apiClient.post('/users/profile-photo', { photo, mimeType }),
+  // H8 paso 1: pide una signed URL a Supabase para subir directo (bypassa AWS WAF del ALB)
+  prepareAvatarUpload: (mimeType) =>
+    apiClient.post('/users/avatar/prepare', { mimeType }),
+
+  // H8 paso 2: confirma al backend que la subida a Supabase fue exitosa
+  confirmAvatarUpload: (filename) =>
+    apiClient.post('/users/avatar/confirm', { filename }),
 
   // H12: Foto de perfil — borrado
   deleteProfilePhoto: () =>
-    apiClient.delete('/users/profile-photo'),
+    apiClient.delete('/users/avatar'),
 
   // Perfil público de cualquier usuario (username, biography, is_online)
   getUserPublicProfile: (userId) =>

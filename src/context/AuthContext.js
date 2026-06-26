@@ -104,8 +104,11 @@ export function AuthProvider({ children }) {
     setUser(updatedUser);
   };
 
-  const uploadProfilePhoto = async (formData) => {
-    const response = await usersApi.uploadProfilePhoto(formData);
+  const prepareAvatarUpload = (mimeType) =>
+    usersApi.prepareAvatarUpload(mimeType);
+
+  const confirmAvatarUpload = async (filename) => {
+    const response = await usersApi.confirmAvatarUpload(filename);
     const updatedUser = { ...user, profile_photo_url: response.data.profile_photo_url };
     await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
     setUser(updatedUser);
@@ -120,7 +123,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, clearLocalSession, deleteAccount, updateProfile, uploadProfilePhoto, deleteProfilePhoto }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, clearLocalSession, deleteAccount, updateProfile, prepareAvatarUpload, confirmAvatarUpload, deleteProfilePhoto }}>
       {children}
     </AuthContext.Provider>
   );
