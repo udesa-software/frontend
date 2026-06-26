@@ -17,6 +17,7 @@ import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 import { getFriendProfile } from '../api/location';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
+import { UserAvatar } from '../components/UserAvatar';
 
 // H9: motivos de denuncia — valor enviado al backend (debe matchear reports.schemas.js) + label visible
 const REPORT_REASONS = [
@@ -366,9 +367,7 @@ export function UserProfileScreen() {
           {/* Avatar + presencia */}
           <View style={styles.avatarSection}>
             <View style={styles.avatarRing}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initial}</Text>
-              </View>
+              <UserAvatar username={displayName} photoUrl={profile?.profile_photo_url} size={80} />
               {profile && (
                 <View
                   testID="online-status-dot"
