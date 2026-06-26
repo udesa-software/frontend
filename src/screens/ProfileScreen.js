@@ -53,7 +53,7 @@ export function ProfileScreen() {
 
       if (!result.canceled && result.assets?.length > 0) {
         const asset = result.assets[0];
-        await uploadImage(asset.uri, asset.mimeType || 'image/jpeg');
+        await uploadImage(asset.uri, asset.mimeType);
       }
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo seleccionar la imagen');
@@ -76,7 +76,7 @@ export function ProfileScreen() {
 
       if (!result.canceled && result.assets?.length > 0) {
         const asset = result.assets[0];
-        await uploadImage(asset.uri, asset.mimeType || 'image/jpeg');
+        await uploadImage(asset.uri, asset.mimeType);
       }
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo tomar la foto');
@@ -87,8 +87,18 @@ export function ProfileScreen() {
     try {
       setIsSaving(true);
 
+      // Validación frontend: inferir mimeType desde extensión si no viene del picker
+      const ALLOWED_MIME = ['image/jpeg', 'image/jpg', 'image/png'];
+      const ext = fileUri?.split('.').pop()?.toLowerCase();
+      const EXT_TO_MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' };
+      const resolvedMimeType = ALLOWED_MIME.includes(mimeType) ? mimeType : EXT_TO_MIME[ext];
+      if (!resolvedMimeType) {
+        Alert.alert('Formato Inválido', 'Solo se aceptan imágenes JPG, PNG.');
+        return;
+      }
+
       // Paso 1: pedir signed URL al backend (request chico, pasa el WAF)
-      const { data: prepareData } = await prepareAvatarUpload(mimeType);
+      const { data: prepareData } = await prepareAvatarUpload(resolvedMimeType);
       const { signedUrl, filename } = prepareData;
 
       // Paso 2: subir directo a Supabase (bypassa el AWS WAF del ALB)
@@ -96,7 +106,7 @@ export function ProfileScreen() {
       const blob = await fileResponse.blob();
       const uploadRes = await fetch(signedUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': mimeType },
+        headers: { 'Content-Type': resolvedMimeType },
         body: blob,
       });
       if (!uploadRes.ok) {
