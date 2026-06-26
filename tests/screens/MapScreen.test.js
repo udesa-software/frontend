@@ -18,6 +18,9 @@ jest.mock('../../src/context/AuthContext', () => ({
 
 jest.mock('@react-navigation/native', () => ({
   useRoute: jest.fn().mockReturnValue({ params: {} }),
+  useNavigation: jest.fn().mockReturnValue({
+    goBack: jest.fn(),
+  }),
 }));
 
 jest.mock('@expo/vector-icons', () => {
@@ -97,6 +100,8 @@ afterAll(() => {
 describe('<MapScreen />', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    const { useRoute } = require('@react-navigation/native');
+    useRoute.mockReturnValue({ params: {} });
     mockGetLastKnownPosition.mockResolvedValue(null);
     mockGetFriendsLocations.mockResolvedValue({ friends: [] });
   });
@@ -107,6 +112,34 @@ describe('<MapScreen />', () => {
 
     render(<MapScreen />);
     expect(screen.getByText('Localizando...')).toBeTruthy();
+  });
+
+  test('renders a history location preview and goes back', async () => {
+    const { useRoute, useNavigation } = require('@react-navigation/native');
+    const navMock = useNavigation();
+    useRoute.mockReturnValue({
+      params: {
+        historyLocation: {
+          latitude: -34.6037,
+          longitude: -58.3816,
+          label: 'Café San Martín',
+          username: 'juan',
+        },
+      },
+    });
+
+    render(<MapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('map-view')).toBeTruthy();
+    });
+
+    expect(mockRequestPermissions).not.toHaveBeenCalled();
+    expect(screen.getAllByText('juan').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('map-label-input')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('history-map-back-button'));
+    expect(navMock.goBack).toHaveBeenCalled();
   });
 
   test('shows error when location permission is denied', async () => {

@@ -253,6 +253,26 @@ export function UserProfileScreen() {
     }
   };
 
+  const handleOpenLocationOnMap = (loc) => {
+    const latitude = Number(loc?.latitude ?? loc?.lat);
+    const longitude = Number(loc?.longitude ?? loc?.lng ?? loc?.lon);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      Alert.alert('Ubicación no disponible', 'Este registro no tiene coordenadas para mostrar en el mapa.');
+      return;
+    }
+
+    navigation.navigate('LocationMap', {
+      historyLocation: {
+        latitude,
+        longitude,
+        label: loc?.label ?? null,
+        createdAt: loc?.createdAt ?? null,
+        username: profile?.username ?? initialUsername ?? 'Usuario',
+      },
+    });
+  };
+
   // ── Render botones de acción ──────────────────────────────────────────────
   const renderActionButtons = () => {
     if (!relationship || relationship.status === 'self') return null;
@@ -423,7 +443,13 @@ export function UserProfileScreen() {
                 </View>
               ) : (
                 locationData.location_history.map((loc, index) => (
-                  <View key={index} testID={`location-item-${index}`} style={styles.locationItem}>
+                  <TouchableOpacity
+                    key={index}
+                    testID={`location-item-${index}`}
+                    style={styles.locationItem}
+                    onPress={() => handleOpenLocationOnMap(loc)}
+                    activeOpacity={0.85}
+                  >
                     <View style={styles.locationTimeline}>
                       <View style={[styles.timelineDot, index === 0 && styles.timelineDotFirst]} />
                       {index < locationData.location_history.length - 1 && (
@@ -435,8 +461,9 @@ export function UserProfileScreen() {
                         {loc.label ? `📍 ${loc.label}` : '📍 Ubicación registrada'}
                       </Text>
                       <Text style={styles.locationTime}>{formatTimeAgo(loc.createdAt)}</Text>
+                      <Text style={styles.locationHint}>Toque para ver en el mapa</Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))
               )}
             </View>
@@ -703,6 +730,7 @@ const getStyles = (colors) => StyleSheet.create({
   },
   locationLabel: { color: colors.text, fontSize: fontSizes.sm, fontWeight: '500', marginBottom: 2 },
   locationTime:  { color: colors.textMuted, fontSize: fontSizes.xs },
+  locationHint:  { color: colors.primary, fontSize: fontSizes.xs, marginTop: 4, fontWeight: '600' },
 
   blockBtn: {
     padding: spacing.md,

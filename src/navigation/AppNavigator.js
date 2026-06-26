@@ -150,6 +150,10 @@ function Navigator() {
               name="UserProfile"
               component={UserProfileScreen}
             />
+            <Stack.Screen
+              name="LocationMap"
+              component={MapScreen}
+            />
           </Stack.Group>
         ) : (
           <>
