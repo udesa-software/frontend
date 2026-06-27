@@ -82,13 +82,17 @@ describe('ProfileScreen', () => {
   });
 
   it('renders user information correctly', async () => {
-    const { getByText, findByText } = render(<ProfileScreen />);
+    const { getByText } = render(<ProfileScreen />);
+
+    // Flush pending async effects (getFriendsList + refreshProfile) so
+    // setFriendCount(5) runs inside act() and doesn't trigger waitFor loop in CI
+    await act(async () => {});
 
     expect(getByText('testuser')).toBeTruthy();
     expect(getByText('test@example.com')).toBeTruthy();
     expect(getByText('Miembro desde')).toBeTruthy();
     expect(getByText('Amigos')).toBeTruthy();
-    expect(await findByText('5')).toBeTruthy();
+    expect(getByText('5')).toBeTruthy();
   });
 
   it('calls logout when button is pressed', () => {
