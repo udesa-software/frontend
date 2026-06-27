@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
@@ -7,9 +7,14 @@ import { AppInput } from '../components/AppInput';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import * as ImagePicker from 'expo-image-picker';
 import { getImageUrl } from '../api/client';
+import { usersApi } from '../api/users';
 
 export function ProfileScreen() {
-  const { user, logout, deleteAccount, updateProfile, prepareAvatarUpload, confirmAvatarUpload, deleteProfilePhoto } = useAuth();
+  const { user, logout, deleteAccount, updateProfile, prepareAvatarUpload, confirmAvatarUpload, deleteProfilePhoto, refreshProfile } = useAuth();
+
+  useEffect(() => {
+    if (user?.id) refreshProfile(user.id);
+  }, []);
   const navigation = useNavigation();
   const { colors } = useTheme();
   const styles = getStyles(colors);

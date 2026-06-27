@@ -104,6 +104,17 @@ export function AuthProvider({ children }) {
     setUser(updatedUser);
   };
 
+  const refreshProfile = async (userId) => {
+    try {
+      const response = await usersApi.getUserPublicProfile(userId);
+      const updatedUser = { ...user, profile_photo_url: response.data.profile_photo_url ?? null };
+      await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    } catch {
+      // si falla, no rompemos la sesión
+    }
+  };
+
   const prepareAvatarUpload = (mimeType) =>
     usersApi.prepareAvatarUpload(mimeType);
 
@@ -123,7 +134,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, clearLocalSession, deleteAccount, updateProfile, prepareAvatarUpload, confirmAvatarUpload, deleteProfilePhoto }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, clearLocalSession, deleteAccount, updateProfile, refreshProfile, prepareAvatarUpload, confirmAvatarUpload, deleteProfilePhoto }}>
       {children}
     </AuthContext.Provider>
   );
