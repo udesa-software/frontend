@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableOpacity, Switch } from 'react-native';
+<<<<<<< Updated upstream
+=======
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
+>>>>>>> Stashed changes
 import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { usersApi } from '../api/users';
+<<<<<<< Updated upstream
 import { getPrivacyStatus, setPrivacyStatus } from '../api/location';
+=======
+import { getPrivacyStatus, setPrivacyStatus, getPinColor, updatePinColor, updateLocation } from '../api/location';
+import { PIN_COLORS, PIN_COLOR_KEY, DEFAULT_PIN_COLOR } from '../constants/pinColors';
+>>>>>>> Stashed changes
 import { useNavigation } from '@react-navigation/native';
 
 const ALLOWED_FREQUENCIES = [5, 15, 30];
@@ -79,6 +89,42 @@ export function PreferencesScreen() {
     }
   };
 
+<<<<<<< Updated upstream
+=======
+  // H9 CA.2: guarda el color en AsyncStorage y en el backend, luego manda la ubicación
+  // para que el nuevo color quede registrado en el próximo punto de ubicación.
+  const handleSelectPinColor = async (color) => {
+    const previousColor = pinColor;
+    setPinColor(color);
+    setIsSavingPin(true);
+    try {
+      await Promise.all([
+        AsyncStorage.setItem(PIN_COLOR_KEY, color),
+        updatePinColor(color),
+      ]);
+
+      // Mandar ubicación inmediatamente para que el nuevo color quede registrado
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+          .catch(() => Location.getLastKnownPositionAsync());
+        if (position) {
+          await updateLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude })
+            .catch(() => {}); // ignorar 429 si actualizó hace poco
+        }
+      }
+    } catch (err) {
+      setPinColor(previousColor);
+      await AsyncStorage.setItem(PIN_COLOR_KEY, previousColor).catch(() => {});
+      const apiError = err.response?.data?.message || err.message || 'Error al guardar el color.';
+      setErrorMsg(apiError);
+      setTimeout(() => setErrorMsg(''), 5000);
+    } finally {
+      setIsSavingPin(false);
+    }
+  };
+
+>>>>>>> Stashed changes
   const handleSave = async () => {
     setErrorMsg('');
     setSuccessMsg('');

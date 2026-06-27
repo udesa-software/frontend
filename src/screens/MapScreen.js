@@ -16,13 +16,14 @@ import * as Location from 'expo-location';
 import * as Battery from 'expo-battery';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useAuth } from '../context/AuthContext';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { updateLocation, getFriendsLocations, updateLabel, deleteLabel } from '../api/location';
+import { usersApi } from '../api/users';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { Ionicons } from '@expo/vector-icons';
 import { CoordsCard, StatusView, SyncBadge } from '../components/MapComponents';
 
-const UPDATE_INTERVAL_MS = 30_000;
+const DEFAULT_UPDATE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos si no se pueden cargar preferencias
 const INITIAL_DELTA = { latitudeDelta: 0.01, longitudeDelta: 0.01 };
 const MAP_CONTROL_PADDING = { top: 50, right: 10, bottom: 160, left: 20 };
 
@@ -50,10 +51,24 @@ export function MapScreen() {
   const [tempLabel, setTempLabel] = useState('');
   const [isUpdatingLabel, setIsUpdatingLabel] = useState(false);
   const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const [updateIntervalMs, setUpdateIntervalMs] = useState(DEFAULT_UPDATE_INTERVAL_MS);
 
   const mapRef = useRef(null);
   const coordsRef = useRef(null);
   coordsRef.current = coords;
+
+  // Cuando el usuario vuelve al mapa (ej: desde PreferencesScreen), re-leer la frecuencia
+  // para que el intervalo de actualización refleje el valor guardado.
+  useFocusEffect(
+    useCallback(() => {
+      usersApi.getPreferences()
+        .then(res => {
+          const freq = res.data?.location_update_frequency;
+          if (freq) setUpdateIntervalMs(freq * 60 * 1000);
+        })
+        .catch(() => {});
+    }, [])
+  );
 
   const sendLocationToBackend = useCallback(async (latitude, longitude) => {
     try {
@@ -160,6 +175,17 @@ export function MapScreen() {
           setCoords({ latitude, longitude });
           setIsLoadingLocation(false);
           sendLocationToBackend(latitude, longitude);
+
+          // Cargar preferencias para saber cada cuánto mandar la ubicación
+          try {
+            const prefsRes = await usersApi.getPreferences();
+            const freq = prefsRes.data?.location_update_frequency;
+            if (freq && isMounted) {
+              setUpdateIntervalMs(freq * 60 * 1000);
+            }
+          } catch {
+            // usa el default de 5 minutos
+          }
         } else if (isMounted) {
           setLocationError('Buscando GPS...');
           setIsLoadingLocation(false);
@@ -184,9 +210,9 @@ export function MapScreen() {
         sendLocationToBackend(coordsRef.current.latitude, coordsRef.current.longitude);
         fetchFriends();
       }
-    }, UPDATE_INTERVAL_MS);
+    }, updateIntervalMs);
     return () => clearInterval(interval);
-  }, [coords, isHistoryPreview, sendLocationToBackend, fetchFriends]);
+  }, [coords, isHistoryPreview, sendLocationToBackend, fetchFriends, updateIntervalMs]);
 
   useEffect(() => {
     if (isHistoryPreview) {
