@@ -13,7 +13,8 @@ let mockUser = {
   id: '12345678-90ab-cdef-1234-567890abcdef',
   username: 'testuser',
   email: 'test@example.com',
-  role: 'Usuario'
+  role: 'Usuario',
+  created_at: '2025-06-01T00:00:00.000Z',
 };
 
 const mockNavigate = jest.fn();
@@ -36,6 +37,14 @@ jest.mock('../../src/context/AuthContext', () => ({
   }),
 }));
 
+jest.mock('../../src/api/friends', () => ({
+  friendsApi: {
+    getFriendsList: jest.fn().mockResolvedValue({
+      data: { pagination: { total: 5 } },
+    }),
+  },
+}));
+
 jest.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: jest.fn(),
   launchImageLibraryAsync: jest.fn(),
@@ -54,13 +63,14 @@ describe('ProfileScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders user information correctly', () => {
-    const { getByText } = render(<ProfileScreen />);
-    
+  it('renders user information correctly', async () => {
+    const { getByText, findByText } = render(<ProfileScreen />);
+
     expect(getByText('testuser')).toBeTruthy();
     expect(getByText('test@example.com')).toBeTruthy();
-    expect(getByText('12345678...')).toBeTruthy();
-    expect(getByText('Usuario')).toBeTruthy();
+    expect(getByText('Miembro desde')).toBeTruthy();
+    expect(getByText('Amigos')).toBeTruthy();
+    expect(await findByText('5')).toBeTruthy();
   });
 
   it('calls logout when button is pressed', () => {
@@ -170,7 +180,7 @@ describe('ProfileScreen', () => {
     mockUser = { ...mockUser, biography: 'This is my bio' };
     const { getByText } = render(<ProfileScreen />);
     expect(getByText('This is my bio')).toBeTruthy();
-    mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario' };
+    mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario', created_at: '2025-06-01T00:00:00.000Z' };
   });
 
   it('initializes edit modal with existing biography', async () => {
@@ -181,7 +191,7 @@ describe('ProfileScreen', () => {
     
     const bioInput = getByPlaceholderText('Cuéntanos algo sobre ti...');
     expect(bioInput.props.value).toBe('Existing bio');
-    mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario' };
+    mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario', created_at: '2025-06-01T00:00:00.000Z' };
   });
 
   it('navigates to ChangePassword when button is pressed', () => {
@@ -498,7 +508,7 @@ describe('ProfileScreen', () => {
       await waitFor(() => expect(mockDeleteProfilePhoto).toHaveBeenCalled());
       expect(alertSpy).toHaveBeenCalledWith('Éxito', 'Foto de perfil eliminada correctamente.');
 
-      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario' };
+      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario', created_at: '2025-06-01T00:00:00.000Z' };
     });
 
     it('shows error from response.data.message when delete photo fails', async () => {
@@ -516,7 +526,7 @@ describe('ProfileScreen', () => {
         expect(alertSpy).toHaveBeenCalledWith('Error', 'No se pudo eliminar la foto')
       );
 
-      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario' };
+      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario', created_at: '2025-06-01T00:00:00.000Z' };
     });
 
     it('shows error from response.data.error when delete photo fails without message', async () => {
@@ -534,7 +544,7 @@ describe('ProfileScreen', () => {
         expect(alertSpy).toHaveBeenCalledWith('Error', 'Forbidden')
       );
 
-      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario' };
+      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario', created_at: '2025-06-01T00:00:00.000Z' };
     });
 
     it('shows err.message when delete photo fails without response', async () => {
@@ -550,7 +560,7 @@ describe('ProfileScreen', () => {
         expect(alertSpy).toHaveBeenCalledWith('Error', 'Network error')
       );
 
-      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario' };
+      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario', created_at: '2025-06-01T00:00:00.000Z' };
     });
 
     it('shows fallback error when delete photo fails without any message', async () => {
@@ -566,7 +576,7 @@ describe('ProfileScreen', () => {
         expect(alertSpy).toHaveBeenCalledWith('Error', 'Error al eliminar foto.')
       );
 
-      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario' };
+      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario', created_at: '2025-06-01T00:00:00.000Z' };
     });
 
     it('shows "Eliminar foto actual" option in alert when user has a profile photo', async () => {
@@ -584,7 +594,7 @@ describe('ProfileScreen', () => {
 
       expect(capturedButtons.some(b => b.text === 'Eliminar foto actual')).toBe(true);
 
-      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario' };
+      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario', created_at: '2025-06-01T00:00:00.000Z' };
     });
 
     it('handles camera capture successfully', async () => {
@@ -709,7 +719,7 @@ describe('ProfileScreen', () => {
       });
 
       // reset
-      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario' };
+      mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario', created_at: '2025-06-01T00:00:00.000Z' };
     });
   });
 });
