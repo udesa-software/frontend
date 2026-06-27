@@ -723,3 +723,99 @@ describe('ProfileScreen', () => {
     });
   });
 });
+
+describe('ProfileScreen — branch coverage', () => {
+  let friendsApiMock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    friendsApiMock = require('../../src/api/friends').friendsApi;
+    mockUser = { id: '12345678-90ab-cdef-1234-567890abcdef', username: 'testuser', email: 'test@example.com', role: 'Usuario', created_at: '2025-06-01T00:00:00.000Z' };
+  });
+
+  it('shows "-" for friend count when api returns no pagination', async () => {
+    friendsApiMock.getFriendsList.mockResolvedValueOnce({ data: {} });
+    const { findByText } = render(<ProfileScreen />);
+    expect(await findByText('-')).toBeTruthy();
+  });
+
+  it('shows "-" for friend count when api fails', async () => {
+    friendsApiMock.getFriendsList.mockRejectedValueOnce(new Error('network'));
+    const { findByText } = render(<ProfileScreen />);
+    expect(await findByText('-')).toBeTruthy();
+  });
+
+  it('shows "-" for member since when user has no created_at', () => {
+    mockUser = { ...mockUser, created_at: undefined };
+    const { getAllByText } = render(<ProfileScreen />);
+    expect(getAllByText('-').length).toBeGreaterThan(0);
+  });
+
+  it('opens edit modal with empty username when user.username is null', () => {
+    mockUser = { ...mockUser, username: null };
+    const { getAllByText, getByPlaceholderText } = render(<ProfileScreen />);
+    fireEvent.press(getAllByText('Editar Perfil')[0]);
+    expect(getByPlaceholderText('Ingresa tu nombre de usuario').props.value).toBe('');
+  });
+
+  it('uses fallback message when updateProfile fails without any error info', async () => {
+    mockUpdateProfile.mockRejectedValueOnce({});
+    const { getAllByText, getByText, getByPlaceholderText, findByText } = render(<ProfileScreen />);
+    fireEvent.press(getAllByText('Editar Perfil')[0]);
+    fireEvent.changeText(getByPlaceholderText('Ingresa tu nombre de usuario'), 'validuser');
+    await act(async () => { fireEvent.press(getByText('Guardar Cambios')); });
+    expect(await findByText('Error al actualizar perfil.')).toBeTruthy();
+  });
+
+  it('uses fallback message when deleteAccount fails without any error info', async () => {
+    mockDeleteAccount.mockRejectedValueOnce({});
+    const { getByText, getByPlaceholderText, findByText } = render(<ProfileScreen />);
+    fireEvent.press(getByText('Eliminar Cuenta'));
+    fireEvent.changeText(getByPlaceholderText('Contraseña actual'), 'pass');
+    await act(async () => { fireEvent.press(getByText('Eliminar permanentemente')); });
+    expect(await findByText('Error al eliminar la cuenta.')).toBeTruthy();
+  });
+
+  it('uses fallback when pickImage err has no message', async () => {
+    ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title, msg, buttons) => {
+      const btn = buttons?.find(b => b.text === 'Elegir de la galería');
+      if (btn?.onPress) btn.onPress();
+    });
+    ImagePicker.launchImageLibraryAsync.mockRejectedValueOnce({});
+    const { getByTestId } = render(<ProfileScreen />);
+    await act(async () => { fireEvent.press(getByTestId('profile-photo-container')); });
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Error', 'No se pudo seleccionar la imagen'));
+    jest.restoreAllMocks();
+  });
+
+  it('uses fallback when takePhoto err has no message', async () => {
+    ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title, msg, buttons) => {
+      const btn = buttons?.find(b => b.text === 'Tomar foto (Cámara)');
+      if (btn?.onPress) btn.onPress();
+    });
+    ImagePicker.requestCameraPermissionsAsync = jest.fn().mockResolvedValueOnce({ status: 'granted' });
+    ImagePicker.launchCameraAsync = jest.fn().mockRejectedValueOnce({});
+    const { getByTestId } = render(<ProfileScreen />);
+    await act(async () => { fireEvent.press(getByTestId('profile-photo-container')); });
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Error', 'No se pudo tomar la foto'));
+    jest.restoreAllMocks();
+  });
+
+  it('handles uri without file extension in upload', async () => {
+    ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title, msg, buttons) => {
+      const btn = buttons?.find(b => b.text === 'Elegir de la galería');
+      if (btn?.onPress) btn.onPress();
+    });
+    ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ uri: 'file://local/path/noextension' }],
+    });
+    const { getByTestId } = render(<ProfileScreen />);
+    await act(async () => { fireEvent.press(getByTestId('profile-photo-container')); });
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Formato Inválido', expect.any(String)));
+    jest.restoreAllMocks();
+  });
+});
