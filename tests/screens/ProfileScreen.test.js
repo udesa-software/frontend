@@ -33,6 +33,7 @@ jest.mock('../../src/context/AuthContext', () => ({
     logout: mockLogout,
     deleteAccount: mockDeleteAccount,
     updateProfile: mockUpdateProfile,
+    refreshProfile: jest.fn().mockResolvedValue(undefined),
     prepareAvatarUpload: mockPrepareAvatarUpload,
     confirmAvatarUpload: mockConfirmAvatarUpload,
     deleteProfilePhoto: mockDeleteProfilePhoto,
