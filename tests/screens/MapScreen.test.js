@@ -21,6 +21,13 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn().mockReturnValue({
     goBack: jest.fn(),
   }),
+  useFocusEffect: jest.fn((cb) => cb()),
+}));
+
+jest.mock('../../src/api/users', () => ({
+  usersApi: {
+    getPreferences: jest.fn().mockResolvedValue({ data: { location_update_frequency: 15 } }),
+  },
 }));
 
 jest.mock('@expo/vector-icons', () => {
@@ -677,8 +684,8 @@ test('triggers interval correctly', async () => {
   mockUpdateLocation.mockClear();
   mockGetFriendsLocations.mockClear();
 
-  // The interval for 30000ms should be registered
-  const intervalCall = setIntervalSpy.mock.calls.find(call => call[1] === 30000);
+  // El intervalo usa la frecuencia de preferencias del usuario (15 min = 900000ms por el mock)
+  const intervalCall = setIntervalSpy.mock.calls.find(call => call[1] === 900000);
   expect(intervalCall).toBeTruthy();
   
   const callback = intervalCall[0];
