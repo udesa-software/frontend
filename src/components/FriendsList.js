@@ -49,6 +49,7 @@ export function FriendsList({ onGoToSearch }) {
         newFriends = rawFriends.map(f => ({
           friend_id: f.userId,
           friend_username: f.username,
+          profile_photo_url: f.profile_photo_url ?? null,
           distance: f.distance,
           distanceMeters: f.distanceMeters,
           latitude: f.latitude,

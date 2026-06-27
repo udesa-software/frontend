@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { AppButton } from './AppButton';
+import { UserAvatar } from './UserAvatar';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { friendsApi } from '../api/friends';
 
@@ -96,11 +97,7 @@ export function PendingRequestsList() {
     return (
       <View style={styles.card}>
         <View style={styles.userInfo}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {(item.requester_username || 'U').charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <UserAvatar username={item.requester_username} photoUrl={item.profile_photo_url} size={40} />
           <View style={styles.details}>
             <Text style={styles.username}>{item.requester_username}</Text>
             <Text style={styles.date}>
