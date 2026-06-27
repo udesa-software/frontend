@@ -26,7 +26,7 @@ jest.mock('@react-navigation/native', () => ({
 
 jest.mock('../../src/api/users', () => ({
   usersApi: {
-    getPreferences: jest.fn().mockResolvedValue({ data: { location_update_frequency: 5 } }),
+    getPreferences: jest.fn().mockResolvedValue({ data: { location_update_frequency: 15 } }),
   },
 }));
 
@@ -683,8 +683,8 @@ test('triggers interval correctly', async () => {
   mockUpdateLocation.mockClear();
   mockGetFriendsLocations.mockClear();
 
-  // El intervalo usa la frecuencia de preferencias del usuario (5 min = 300000ms por el mock)
-  const intervalCall = setIntervalSpy.mock.calls.find(call => call[1] === 300000);
+  // El intervalo usa la frecuencia de preferencias del usuario (15 min = 900000ms por el mock)
+  const intervalCall = setIntervalSpy.mock.calls.find(call => call[1] === 900000);
   expect(intervalCall).toBeTruthy();
   
   const callback = intervalCall[0];

@@ -61,12 +61,15 @@ export function MapScreen() {
   // para que el intervalo de actualización refleje el valor guardado.
   useFocusEffect(
     useCallback(() => {
+      let cancelled = false;
       usersApi.getPreferences()
         .then(res => {
+          if (cancelled) return;
           const freq = res.data?.location_update_frequency;
           if (freq) setUpdateIntervalMs(freq * 60 * 1000);
         })
         .catch(() => {});
+      return () => { cancelled = true; };
     }, [])
   );
 
@@ -176,16 +179,6 @@ export function MapScreen() {
           setIsLoadingLocation(false);
           sendLocationToBackend(latitude, longitude);
 
-          // Cargar preferencias para saber cada cuánto mandar la ubicación
-          try {
-            const prefsRes = await usersApi.getPreferences();
-            const freq = prefsRes.data?.location_update_frequency;
-            if (freq && isMounted) {
-              setUpdateIntervalMs(freq * 60 * 1000);
-            }
-          } catch {
-            // usa el default de 5 minutos
-          }
         } else if (isMounted) {
           setLocationError('Buscando GPS...');
           setIsLoadingLocation(false);
