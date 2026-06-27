@@ -26,6 +26,14 @@ jest.mock('../../src/api/location', () => ({
   setPrivacyStatus: jest.fn(),
   getPinColor: jest.fn(),
   updatePinColor: jest.fn(),
+  updateLocation: jest.fn(),
+}));
+
+jest.mock('expo-location', () => ({
+  getForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  getCurrentPositionAsync: jest.fn().mockResolvedValue({ coords: { latitude: -34.6, longitude: -58.4 } }),
+  getLastKnownPositionAsync: jest.fn().mockResolvedValue(null),
+  Accuracy: { Balanced: 3 },
 }));
 
 describe('PreferencesScreen', () => {

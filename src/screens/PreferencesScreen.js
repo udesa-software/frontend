@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableOpacity, Switch } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { usersApi } from '../api/users';
-import { getPrivacyStatus, setPrivacyStatus, getPinColor, updatePinColor } from '../api/location';
+import { getPrivacyStatus, setPrivacyStatus, getPinColor, updatePinColor, updateLocation } from '../api/location';
 import { PIN_COLORS, PIN_COLOR_KEY, DEFAULT_PIN_COLOR } from '../constants/pinColors';
 import { useNavigation } from '@react-navigation/native';
 
@@ -102,6 +103,17 @@ export function PreferencesScreen() {
         AsyncStorage.setItem(PIN_COLOR_KEY, color),
         updatePinColor(color),
       ]);
+
+      // Mandar ubicación para que el nuevo color quede registrado en el historial
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+          .catch(() => Location.getLastKnownPositionAsync());
+        if (position) {
+          await updateLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude })
+            .catch(() => {}); // ignorar 429 si actualizó hace poco
+        }
+      }
     } catch (err) {
       setPinColor(previousColor);
       await AsyncStorage.setItem(PIN_COLOR_KEY, previousColor).catch(() => {});
