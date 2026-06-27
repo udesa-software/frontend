@@ -5,7 +5,7 @@ import { UserProfileScreen } from '../../src/screens/UserProfileScreen';
 import { usersApi } from '../../src/api/users';
 import { friendsApi } from '../../src/api/friends';
 import { getFriendProfile } from '../../src/api/location';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 jest.mock('../../src/api/users', () => ({
   usersApi: {
@@ -118,6 +118,49 @@ describe('UserProfileScreen', () => {
     });
     const { findByText } = render(<UserProfileScreen />);
     expect(await findByText(/Café San Martín/)).toBeTruthy();
+  });
+
+  it('opens location map when pressing a history item with coordinates', async () => {
+    const navMock = useNavigation();
+    friendsApi.getRelationshipStatus.mockResolvedValue({ data: { status: 'friends' } });
+    getFriendProfile.mockResolvedValue({
+      isHistoryPrivate: false,
+      location_history: [{
+        label: 'Café San Martín',
+        createdAt: new Date(Date.now() - 60000).toISOString(),
+        latitude: -34.6037,
+        longitude: -58.3816,
+      }]
+    });
+
+    const { findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByTestId('location-item-0'));
+
+    expect(navMock.navigate).toHaveBeenCalledWith('LocationMap', {
+      historyLocation: expect.objectContaining({
+        latitude: -34.6037,
+        longitude: -58.3816,
+        label: 'Café San Martín',
+        username: 'juan',
+      }),
+    });
+  });
+
+  it('shows alert when history item has no coordinates', async () => {
+    const spy = jest.spyOn(Alert, 'alert');
+    friendsApi.getRelationshipStatus.mockResolvedValue({ data: { status: 'friends' } });
+    getFriendProfile.mockResolvedValue({
+      isHistoryPrivate: false,
+      location_history: [{ label: 'Café San Martín', createdAt: new Date().toISOString() }]
+    });
+
+    const { findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByTestId('location-item-0'));
+
+    expect(spy).toHaveBeenCalledWith(
+      'Ubicación no disponible',
+      'Este registro no tiene coordenadas para mostrar en el mapa.'
+    );
   });
 
   it('shows private message when friends but history is private', async () => {
