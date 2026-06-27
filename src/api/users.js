@@ -1,7 +1,4 @@
 import apiClient from './client';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000/api';
 
 export const usersApi = {
   // POST /api/users/register
@@ -32,34 +29,18 @@ export const usersApi = {
   heartbeat: () =>
     apiClient.post('/users/heartbeat'),
 
-  uploadProfilePhoto: (formData) =>
-    new Promise(async (resolve, reject) => {
-      const token = await AsyncStorage.getItem('authToken');
+  // H8 paso 1: pide una signed URL a Supabase para subir directo (bypassa AWS WAF del ALB)
+  prepareAvatarUpload: (mimeType) =>
+    apiClient.post('/users/avatar/prepare', { mimeType }),
 
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${BASE_URL}/users/profile-photo`);
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-
-      xhr.onload = () => {
-        try {
-          const data = JSON.parse(xhr.responseText);
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve({ data });
-          } else {
-            reject(new Error(data.message || data.error || 'Error al subir foto.'));
-          }
-        } catch {
-          reject(new Error('Error al procesar la respuesta del servidor.'));
-        }
-      };
-
-      xhr.onerror = () => reject(new Error('Error de red al subir la foto.'));
-      xhr.send(formData);
-    }),
+  // H8 paso 2: confirma al backend que la subida a Supabase fue exitosa
+  confirmAvatarUpload: (filename) =>
+    apiClient.post('/users/avatar/confirm', { filename }),
 
   // H12: Foto de perfil — borrado
   deleteProfilePhoto: () =>
-    apiClient.delete('/users/profile-photo'),
+    apiClient.delete('/users/avatar'),
+
   // Perfil público de cualquier usuario (username, biography, is_online)
   getUserPublicProfile: (userId) =>
     apiClient.get(`/users/${userId}/profile`),

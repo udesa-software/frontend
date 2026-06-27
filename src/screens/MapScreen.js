@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
   Linking,
   Platform,
   Pressable,
@@ -14,14 +16,15 @@ import * as Location from 'expo-location';
 import * as Battery from 'expo-battery';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useAuth } from '../context/AuthContext';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { updateLocation, getFriendsLocations, updateLabel, deleteLabel } from '../api/location';
-import { colors, fontSizes, radii, spacing } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { Ionicons } from '@expo/vector-icons';
 import { CoordsCard, StatusView, SyncBadge } from '../components/MapComponents';
 
 const UPDATE_INTERVAL_MS = 30_000;
 const INITIAL_DELTA = { latitudeDelta: 0.01, longitudeDelta: 0.01 };
+const MAP_CONTROL_PADDING = { top: 50, right: 10, bottom: 160, left: 20 };
 
 
 
@@ -29,18 +32,24 @@ const INITIAL_DELTA = { latitudeDelta: 0.01, longitudeDelta: 0.01 };
 
 export function MapScreen() {
   const { user } = useAuth();
+  const navigation = useNavigation();
   const route = useRoute();
+  const historyLocation = route.params?.historyLocation ?? null;
+  const isHistoryPreview = Boolean(historyLocation);
 
   const [coords, setCoords] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [syncStatus, setSyncStatus] = useState('idle');
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   const [lastSent, setLastSent] = useState(null);
   const [friends, setFriends] = useState([]);
   
   const [myLabel, setMyLabel] = useState('');
   const [tempLabel, setTempLabel] = useState('');
   const [isUpdatingLabel, setIsUpdatingLabel] = useState(false);
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
 
   const mapRef = useRef(null);
   const coordsRef = useRef(null);
@@ -79,6 +88,7 @@ export function MapScreen() {
   }, []);
 
   const onUpdateLabel = async () => {
+    if (isUpdatingLabel) return;
     const text = tempLabel.trim();
     setIsUpdatingLabel(true);
     try {
@@ -109,7 +119,27 @@ export function MapScreen() {
     }
   };
 
+  const centerOnHistoryLocation = useCallback(() => {
+    if (!historyLocation || !mapRef.current) return;
+    mapRef.current.animateToRegion({
+      latitude: historyLocation.latitude,
+      longitude: historyLocation.longitude,
+      ...INITIAL_DELTA,
+    }, 1000);
+  }, [historyLocation]);
+
   useEffect(() => {
+    if (isHistoryPreview) {
+      setCoords({
+        latitude: historyLocation.latitude,
+        longitude: historyLocation.longitude,
+      });
+      setIsLoadingLocation(false);
+      setLocationError(null);
+      setFriends([]);
+      return;
+    }
+
     let isMounted = true;
     async function initLocation() {
       try {
@@ -143,9 +173,10 @@ export function MapScreen() {
     }
     initLocation();
     return () => { isMounted = false; };
-  }, [sendLocationToBackend]);
+  }, [historyLocation, isHistoryPreview, sendLocationToBackend]);
 
   useEffect(() => {
+    if (isHistoryPreview) return;
     if (!coords) return;
     fetchFriends();
     const interval = setInterval(() => {
@@ -155,9 +186,14 @@ export function MapScreen() {
       }
     }, UPDATE_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [coords, sendLocationToBackend, fetchFriends]);
+  }, [coords, isHistoryPreview, sendLocationToBackend, fetchFriends]);
 
   useEffect(() => {
+    if (isHistoryPreview) {
+      centerOnHistoryLocation();
+      return;
+    }
+
     if (route.params?.focusUserId && friends.length > 0) {
       const friend = friends.find(f => f.userId === route.params.focusUserId);
       if (friend && mapRef.current) {
@@ -168,7 +204,7 @@ export function MapScreen() {
         }, 1000);
       }
     }
-  }, [route.params?.focusUserId, friends]);
+  }, [centerOnHistoryLocation, friends, isHistoryPreview, route.params?.focusUserId]);
 
   function renderMap() {
     if (!coords) return null;
@@ -221,24 +257,43 @@ export function MapScreen() {
           style={styles.map}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
           initialRegion={{ ...coords, ...INITIAL_DELTA }}
+          mapPadding={MAP_CONTROL_PADDING}
           showsCompass
         >
-          {}
-          <Marker 
-            coordinate={coords} 
-            zIndex={5}
-          >
-            <View style={[styles.miniMarker, { backgroundColor: colors.primary }]} />
-            <Callout>
-              <View style={styles.userCallout}>
-                <Text style={styles.calloutName}>Tú</Text>
-                <Text style={styles.calloutLabel}>{myLabel || "Sin tag"}</Text>
-              </View>
-            </Callout>
-          </Marker>
+          {isHistoryPreview ? (
+            <Marker
+              coordinate={{
+                latitude: historyLocation.latitude,
+                longitude: historyLocation.longitude,
+              }}
+              zIndex={10}
+            >
+              <View style={[styles.miniMarker, { backgroundColor: colors.primary }]} />
+              <Callout>
+                <View style={styles.userCallout}>
+                  <Text style={styles.calloutName}>{historyLocation.username}</Text>
+                  <Text style={styles.calloutLabel}>
+                    {historyLocation.label || 'Ubicación registrada'}
+                  </Text>
+                </View>
+              </Callout>
+            </Marker>
+          ) : (
+            <Marker
+              coordinate={coords}
+              zIndex={5}
+            >
+              <View style={[styles.miniMarker, { backgroundColor: colors.primary }]} />
+              <Callout>
+                <View style={styles.userCallout}>
+                  <Text style={styles.calloutName}>Tú</Text>
+                  <Text style={styles.calloutLabel}>{myLabel || "Sin tag"}</Text>
+                </View>
+              </Callout>
+            </Marker>
+          )}
 
-          {}
-          {friends.map((friend, index) => {
+          {!isHistoryPreview && friends.map((friend, index) => {
             const { latitude: jitterLat, longitude: jitterLon } = getJitteredCoords(friend, index);
 
             return (
@@ -259,60 +314,104 @@ export function MapScreen() {
             );
           })}
         </MapView>
-        
-        {/* User Stats Floating */}
-        <View style={styles.floatingHeader}>
-            <View style={styles.userHeaderInfo}>
-                <Text style={styles.greeting}>@{user?.username}</Text>
-                <CoordsCard lastSent={lastSent} />
-            </View>
-            <SyncBadge status={syncStatus} />
-        </View>
 
-        {/* Floating Capsule Footer */}
-        <View style={styles.floatingFooter}>
-            <View style={styles.tagCapsule}>
-                <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textMuted} />
-                <TextInput
-                    style={styles.labelTextInput}
-                    value={tempLabel}
-                    onChangeText={setTempLabel}
-                    placeholder={myLabel || "Pon tu estado..."}
-                    placeholderTextColor={colors.textMuted}
-                    maxLength={30}
-                    returnKeyType="done"
-                />
-                
-                {isUpdatingLabel ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                    <View style={{flexDirection: 'row', gap: 10}}>
-                        {tempLabel !== '' && (
-                            <Pressable onPress={onUpdateLabel}>
-                                <Ionicons name="checkmark-circle" size={28} color={colors.success} />
-                            </Pressable>
-                        )}
-                        {myLabel !== '' && (
-                            <Pressable onPress={async () => {
-                                try {
-                                    await deleteLabel();
-                                    setMyLabel('');
-                                    setTempLabel('');
-                                } catch (err) {
-                                    Alert.alert("Error", "No se pudo borrar.");
-                                }
-                            }}>
-                                <Ionicons name="close-circle-outline" size={28} color={colors.error} />
-                            </Pressable>
-                        )}
-                    </View>
-                )}
-            </View>
-        </View>
+        {isEditingLabel && !isHistoryPreview && (
+          <Pressable
+            style={styles.keyboardDismissOverlay}
+            onPress={Keyboard.dismiss}
+            testID="map-keyboard-dismiss-overlay"
+          />
+        )}
 
-        <Pressable style={styles.centerButton} onPress={centerOnMe}>
-          <Ionicons name="locate" size={24} color={colors.primary} />
-        </Pressable>
+        {isHistoryPreview ? (
+          <>
+            <View style={styles.previewHeader}>
+              <Pressable
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}
+                testID="history-map-back-button"
+              >
+                <Ionicons name="arrow-back" size={22} color={colors.text} />
+              </Pressable>
+              <View style={styles.previewInfo}>
+                <Text style={styles.greeting}>{historyLocation.username}</Text>
+                <Text style={styles.previewSubtitle}>
+                  {historyLocation.label || 'Ubicación registrada'}
+                </Text>
+              </View>
+            </View>
+
+            <Pressable style={styles.centerButton} onPress={centerOnHistoryLocation}>
+              <Ionicons name="locate" size={24} color={colors.primary} />
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <View style={styles.floatingHeader}>
+                <View style={styles.userHeaderInfo}>
+                    <Text style={styles.greeting}>@{user?.username}</Text>
+                    <CoordsCard lastSent={lastSent} />
+                </View>
+                <SyncBadge status={syncStatus} />
+            </View>
+
+            <KeyboardAvoidingView
+              behavior="position"
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
+              pointerEvents="box-none"
+              style={styles.keyboardAvoidingFooter}
+              testID="map-keyboard-avoiding-footer"
+            >
+              <View style={styles.floatingFooter}>
+                <View style={styles.tagCapsule}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textMuted} />
+                    <TextInput
+                        testID="map-label-input"
+                        style={styles.labelTextInput}
+                        value={tempLabel}
+                        onChangeText={setTempLabel}
+                        placeholder={myLabel || "Contale a tus amigos dónde estás..."}
+                        placeholderTextColor={colors.textMuted}
+                        maxLength={30}
+                        returnKeyType="done"
+                        onSubmitEditing={onUpdateLabel}
+                        onFocus={() => setIsEditingLabel(true)}
+                        onBlur={() => setIsEditingLabel(false)}
+                    />
+                    
+                    {isUpdatingLabel ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                        <View style={{flexDirection: 'row', gap: 10}}>
+                            {tempLabel !== '' && (
+                                <Pressable onPress={onUpdateLabel}>
+                                    <Ionicons name="checkmark-circle" size={28} color={colors.success} />
+                                </Pressable>
+                            )}
+                            {myLabel !== '' && (
+                                <Pressable onPress={async () => {
+                                    try {
+                                        await deleteLabel();
+                                        setMyLabel('');
+                                        setTempLabel('');
+                                    } catch (err) {
+                                        Alert.alert("Error", "No se pudo borrar.");
+                                    }
+                                }}>
+                                    <Ionicons name="close-circle-outline" size={28} color={colors.error} />
+                                </Pressable>
+                            )}
+                        </View>
+                    )}
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+
+            <Pressable style={styles.centerButton} onPress={centerOnMe}>
+              <Ionicons name="locate" size={24} color={colors.primary} />
+            </Pressable>
+          </>
+        )}
       </View>
     );
   }
@@ -330,10 +429,14 @@ export function MapScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   mapWrapper: { flex: 1 },
   map: { flex: 1 },
+  keyboardDismissOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 5,
+  },
   miniMarker: {
     width: 14,
     height: 14,
@@ -379,10 +482,43 @@ const styles = StyleSheet.create({
   },
   userHeaderInfo: { flex: 1 },
   greeting: { fontSize: fontSizes.md, fontWeight: '700', color: '#FFFFFE' },
+  previewHeader: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: 'rgba(26, 26, 46, 0.9)',
+    padding: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewInfo: {
+    flex: 1,
+  },
+  previewSubtitle: {
+    color: colors.textMuted,
+    fontSize: fontSizes.sm,
+    marginTop: 2,
+  },
 
-  floatingFooter: {
+  keyboardAvoidingFooter: {
     position: 'absolute', bottom: 30, left: 20, right: 20,
-    alignItems: 'center', zIndex: 10,
+    zIndex: 20,
+  },
+  floatingFooter: {
+    alignItems: 'center', zIndex: 20,
   },
   tagCapsule: {
     flexDirection: 'row', alignItems: 'center', 
@@ -401,6 +537,7 @@ const styles = StyleSheet.create({
 
   centerButton: {
     position: 'absolute', right: 20, bottom: 120,
+    zIndex: 10,
     backgroundColor: colors.surface, width: 48, height: 48, borderRadius: 24,
     justifyContent: 'center', alignItems: 'center', elevation: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84,

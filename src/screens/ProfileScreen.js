@@ -1,16 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import * as ImagePicker from 'expo-image-picker';
 import { getImageUrl } from '../api/client';
+import { usersApi } from '../api/users';
+import { friendsApi } from '../api/friends';
 
 export function ProfileScreen() {
-  const { user, logout, deleteAccount, updateProfile, uploadProfilePhoto, deleteProfilePhoto } = useAuth();
+  const { user, logout, deleteAccount, updateProfile, prepareAvatarUpload, confirmAvatarUpload, deleteProfilePhoto, refreshProfile } = useAuth();
+
+  useEffect(() => {
+    if (user?.id) refreshProfile(user.id);
+  }, []);
   const navigation = useNavigation();
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
+  const [friendCount, setFriendCount] = useState(null);
+
+  useEffect(() => {
+    friendsApi.getFriendsList('alphabetical', 1)
+      .then(res => setFriendCount(res.data?.pagination?.total ?? null))
+      .catch(() => setFriendCount(null));
+  }, []);
 
   const handleSelectProfilePhoto = async () => {
     console.log('handleSelectProfilePhoto CALLED');
@@ -49,8 +65,9 @@ export function ProfileScreen() {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        await uploadImage(result.assets[0].uri);
+      if (!result.canceled && result.assets?.length > 0) {
+        const asset = result.assets[0];
+        await uploadImage(asset.uri, asset.mimeType);
       }
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo seleccionar la imagen');
@@ -71,34 +88,47 @@ export function ProfileScreen() {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        await uploadImage(result.assets[0].uri);
+      if (!result.canceled && result.assets?.length > 0) {
+        const asset = result.assets[0];
+        await uploadImage(asset.uri, asset.mimeType);
       }
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo tomar la foto');
     }
   };
 
-  const uploadImage = async (uri) => {
+  const uploadImage = async (fileUri, mimeType) => {
     try {
       setIsSaving(true);
 
-      const filename = uri.split('/').pop();
-      const match = /\.(\w+)$/.exec(filename);
-      const ext = match ? match[1].toLowerCase() : '';
-      const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
-
-      if (ext !== 'png' && ext !== 'jpg' && ext !== 'jpeg') {
-        Alert.alert('Formato Inválido', 'El sistema solo acepta formatos válidos de imagen (JPG, PNG).');
+      // Validación frontend: inferir mimeType desde extensión si no viene del picker
+      const ALLOWED_MIME = ['image/jpeg', 'image/jpg', 'image/png'];
+      const ext = fileUri?.split('.').pop()?.toLowerCase();
+      const EXT_TO_MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' };
+      const resolvedMimeType = ALLOWED_MIME.includes(mimeType) ? mimeType : EXT_TO_MIME[ext];
+      if (!resolvedMimeType) {
+        Alert.alert('Formato Inválido', 'Solo se aceptan imágenes JPG, PNG.');
         return;
       }
 
-      // FormData con fetch nativo (ver users.js) — evita el problema de
-      // boundary que tenía axios al setear Content-Type manualmente.
-      const formData = new FormData();
-      formData.append('profilePhoto', { uri, name: filename, type: mimeType });
+      // Paso 1: pedir signed URL al backend (request chico, pasa el WAF)
+      const { data: prepareData } = await prepareAvatarUpload(resolvedMimeType);
+      const { signedUrl, filename } = prepareData;
 
-      await uploadProfilePhoto(formData);
+      // Paso 2: subir directo a Supabase (bypassa el AWS WAF del ALB)
+      const fileResponse = await fetch(fileUri);
+      const blob = await fileResponse.blob();
+      const uploadRes = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': resolvedMimeType },
+        body: blob,
+      });
+      if (!uploadRes.ok) {
+        throw new Error('Error al subir la imagen al almacenamiento.');
+      }
+
+      // Paso 3: confirmar al backend (request chico, pasa el WAF)
+      await confirmAvatarUpload(filename);
       Alert.alert('Éxito', 'Foto de perfil actualizada correctamente.');
     } catch (err) {
       const errMsg = err?.message || 'Error al subir foto.';
@@ -191,98 +221,108 @@ export function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.settingsIcon} 
-          onPress={() => navigation.navigate('Preferences')}
-        >
-          <Text style={{ fontSize: 24 }}>⚙️</Text>
-        </TouchableOpacity>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.settingsIcon}
+            onPress={() => navigation.navigate('Preferences')}
+          >
+            <Text style={{ fontSize: 24 }}>⚙️</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity testID="profile-photo-container" style={styles.profilePhotoContainer} onPress={handleSelectProfilePhoto} disabled={isSaving}>
-          {user.profile_photo_url ? (
-            <Image 
-              source={{ uri: getImageUrl(user.profile_photo_url) }} 
-              style={styles.profilePhotoImage} 
-              testID="profile-photo"
-            />
-          ) : (
-            <View style={styles.profilePhotoPlaceholder}>
-              <Text style={styles.profilePhotoText}>{user.username?.charAt(0).toUpperCase()}</Text>
+          <TouchableOpacity testID="profile-photo-container" style={styles.profilePhotoContainer} onPress={handleSelectProfilePhoto} disabled={isSaving}>
+            {user.profile_photo_url ? (
+              <Image
+                source={{ uri: getImageUrl(user.profile_photo_url) }}
+                style={styles.profilePhotoImage}
+                testID="profile-photo"
+              />
+            ) : (
+              <View style={styles.profilePhotoPlaceholder}>
+                <Text style={styles.profilePhotoText}>{user.username?.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+            <View style={styles.profilePhotoEditOverlay}>
+              <Text style={styles.profilePhotoEditOverlayText}>Editar</Text>
             </View>
-          )}
-          <View style={styles.profilePhotoEditOverlay}>
-            <Text style={styles.profilePhotoEditOverlayText}>Editar</Text>
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.username}>{user.username}</Text>
-        <Text style={styles.email}>{user.email}</Text>
-        {user.biography ? <Text style={styles.bio}>{user.biography}</Text> : null}
-        
-        <View style={styles.actionRow}>
-          <AppButton
-            title="Editar Perfil"
-            variant="secondary"
-            onPress={openEditModal}
-            style={styles.editBtn}
-          />
-          {user.profile_photo_url ? (
+          </TouchableOpacity>
+          <Text style={styles.username}>{user.username}</Text>
+          <Text style={styles.email}>{user.email}</Text>
+          {user.biography ? <Text style={styles.bio}>{user.biography}</Text> : null}
+
+          <View style={styles.actionRow}>
             <AppButton
-              title="Eliminar Foto"
+              title="Editar Perfil"
               variant="secondary"
-              onPress={handleDeleteProfilePhoto}
-              style={[styles.editBtn, styles.deleteProfilePhotoBtn]}
-              textStyle={{ color: colors.error }}
+              onPress={openEditModal}
+              style={styles.editBtn}
             />
-          ) : null}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Cuenta</Text>
-        <View style={styles.card}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>ID de Usuario</Text>
-            <Text style={styles.infoValue}>{user.id?.slice(0, 8)}...</Text>
-          </View>
-          <View style={[styles.infoRow, styles.lastRow]}>
-            <Text style={styles.infoLabel}>Rol</Text>
-            <Text style={styles.infoValue}>{user.role || 'Usuario'}</Text>
+            {user.profile_photo_url ? (
+              <AppButton
+                title="Eliminar Foto"
+                variant="secondary"
+                onPress={handleDeleteProfilePhoto}
+                style={[styles.editBtn, styles.deleteProfilePhotoBtn]}
+                textStyle={{ color: colors.error }}
+              />
+            ) : null}
           </View>
         </View>
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Seguridad</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Cuenta</Text>
+          <View style={styles.card}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Miembro desde</Text>
+              <Text style={styles.infoValue}>
+                {user.created_at
+                  ? new Date(user.created_at).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+                  : '-'}
+              </Text>
+            </View>
+            <View style={[styles.infoRow, styles.lastRow]}>
+              <Text style={styles.infoLabel}>Amigos</Text>
+              <Text style={styles.infoValue}>{friendCount !== null ? friendCount : '-'}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Seguridad</Text>
+          <AppButton
+            title="Cambiar Contraseña"
+            variant="secondary"
+            onPress={() => navigation.navigate('ChangePassword')}
+            style={styles.securityBtn}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, styles.dangerTitle]}>Zona de Peligro</Text>
+          <AppButton
+            title="Eliminar Cuenta"
+            variant="secondary"
+            onPress={() => setIsDeleteModalVisible(true)}
+            style={styles.deleteBtn}
+            // Idealmente tendríamos un variant 'danger' pero usaremos estilos manuales por ahora
+            textStyle={{ color: colors.error }}
+          />
+          <Text style={styles.dangerNote}>
+            Esta acción es permanente y borrará todos tus datos.
+          </Text>
+        </View>
+
         <AppButton
-          title="Cambiar Contraseña"
-          variant="secondary"
-          onPress={() => navigation.navigate('ChangePassword')}
-          style={styles.securityBtn}
+          title="Cerrar Sesión"
+          variant="text"
+          onPress={logout}
+          style={styles.logoutBtn}
         />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, styles.dangerTitle]}>Zona de Peligro</Text>
-        <AppButton
-          title="Eliminar Cuenta"
-          variant="secondary"
-          onPress={() => setIsDeleteModalVisible(true)}
-          style={styles.deleteBtn}
-          // Idealmente tendríamos un variant 'danger' pero usaremos estilos manuales por ahora
-          textStyle={{ color: colors.error }}
-        />
-        <Text style={styles.dangerNote}>
-          Esta acción es permanente y borrará todos tus datos.
-        </Text>
-      </View>
-
-      <AppButton
-        title="Cerrar Sesión"
-        variant="text"
-        onPress={logout}
-        style={styles.logoutBtn}
-      />
+      </ScrollView>
 
       {/* Modal de Edición de Perfil */}
       <Modal
@@ -398,11 +438,15 @@ export function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   header: {
     alignItems: 'center',
@@ -558,7 +602,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   logoutBtn: {
-    marginTop: 'auto',
+    marginTop: spacing.sm,
     marginBottom: spacing.lg,
   },
   modalOverlay: {

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Ale
 import * as Linking from 'expo-linking';
 import { AppInput } from '../components/AppInput';
 import { AppButton } from '../components/AppButton';
-import { colors, spacing, fontSizes } from '../theme';
+import { spacing, fontSizes, useTheme } from '../theme/index';
 import { authApi } from '../api/auth';
 
 export function ForgotPasswordScreen({ navigation }) {
@@ -11,6 +11,8 @@ export function ForgotPasswordScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [error, setError] = useState(null);
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
 
   const handleRequestReset = async () => {
     if (!identifier) {
@@ -101,7 +103,7 @@ export function ForgotPasswordScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

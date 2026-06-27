@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import { MapScreen } from '../../src/screens/MapScreen';
-import { Alert } from 'react-native';
+import { Alert, Keyboard } from 'react-native';
 
 
 const mockUser = {
@@ -18,6 +18,9 @@ jest.mock('../../src/context/AuthContext', () => ({
 
 jest.mock('@react-navigation/native', () => ({
   useRoute: jest.fn().mockReturnValue({ params: {} }),
+  useNavigation: jest.fn().mockReturnValue({
+    goBack: jest.fn(),
+  }),
 }));
 
 jest.mock('@expo/vector-icons', () => {
@@ -66,7 +69,7 @@ jest.mock('react-native-maps', () => {
     React.useImperativeHandle(ref, () => ({
       animateToRegion: jest.fn(),
     }));
-    return <View testID="map-view">{props.children}</View>;
+    return <View testID="map-view" mapPadding={props.mapPadding}>{props.children}</View>;
   });
   const MockMarker = (props) => <View testID="map-marker">{props.children}</View>;
   const MockCallout = (props) => <View testID="map-callout">{props.children}</View>;
@@ -98,6 +101,8 @@ afterAll(() => {
 describe('<MapScreen />', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    const { useRoute } = require('@react-navigation/native');
+    useRoute.mockReturnValue({ params: {} });
     mockGetLastKnownPosition.mockResolvedValue(null);
     mockGetFriendsLocations.mockResolvedValue({ friends: [] });
   });
@@ -108,6 +113,34 @@ describe('<MapScreen />', () => {
 
     render(<MapScreen />);
     expect(screen.getByText('Localizando...')).toBeTruthy();
+  });
+
+  test('renders a history location preview and goes back', async () => {
+    const { useRoute, useNavigation } = require('@react-navigation/native');
+    const navMock = useNavigation();
+    useRoute.mockReturnValue({
+      params: {
+        historyLocation: {
+          latitude: -34.6037,
+          longitude: -58.3816,
+          label: 'Café San Martín',
+          username: 'juan',
+        },
+      },
+    });
+
+    render(<MapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('map-view')).toBeTruthy();
+    });
+
+    expect(mockRequestPermissions).not.toHaveBeenCalled();
+    expect(screen.getAllByText('juan').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('map-label-input')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('history-map-back-button'));
+    expect(navMock.goBack).toHaveBeenCalled();
   });
 
   test('shows error when location permission is denied', async () => {
@@ -152,6 +185,18 @@ describe('<MapScreen />', () => {
     expect(screen.getByText('✨ Estudiando')).toBeTruthy();
   });
 
+  test('adds top padding for native map controls', async () => {
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockResolvedValue({
+      coords: { latitude: -34.5833, longitude: -58.4372 },
+    });
+
+    render(<MapScreen />);
+
+    const map = await screen.findByTestId('map-view');
+    expect(map.props.mapPadding.top).toBeGreaterThanOrEqual(50);
+  });
+
   test('updates label successfully', async () => {
     mockRequestPermissions.mockResolvedValue({ status: 'granted' });
     mockGetCurrentPosition.mockResolvedValue({
@@ -166,7 +211,7 @@ describe('<MapScreen />', () => {
       expect(screen.getByTestId('map-view')).toBeTruthy();
     });
 
-    const input = screen.getByPlaceholderText('Pon tu estado...');
+    const input = screen.getByTestId('map-label-input');
     fireEvent.changeText(input, 'Estudiando');
 
     const button = await screen.findByText('checkmark-circle');
@@ -175,6 +220,52 @@ describe('<MapScreen />', () => {
     await waitFor(() => {
       expect(mockUpdateLabel).toHaveBeenCalledWith('Estudiando');
     });
+  });
+
+  test('updates label when submitting from keyboard', async () => {
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockResolvedValue({
+      coords: { latitude: -34.5833, longitude: -58.4372 },
+    });
+
+    mockUpdateLabel.mockResolvedValue();
+
+    render(<MapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('map-view')).toBeTruthy();
+    });
+
+    const input = screen.getByTestId('map-label-input');
+    fireEvent.changeText(input, 'En clase');
+    fireEvent(input, 'submitEditing');
+
+    await waitFor(() => {
+      expect(mockUpdateLabel).toHaveBeenCalledWith('En clase');
+    });
+  });
+
+  test('dismisses keyboard when tapping outside the label input', async () => {
+    mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPosition.mockResolvedValue({
+      coords: { latitude: -34.5833, longitude: -58.4372 },
+    });
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+
+    render(<MapScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('map-view')).toBeTruthy();
+    });
+
+    const input = screen.getByTestId('map-label-input');
+    fireEvent(input, 'focus');
+
+    const overlay = await screen.findByTestId('map-keyboard-dismiss-overlay');
+    fireEvent.press(overlay);
+
+    expect(dismissSpy).toHaveBeenCalled();
+    dismissSpy.mockRestore();
   });
 
 test('deletes label when pressing delete button', async () => {
@@ -191,7 +282,7 @@ test('deletes label when pressing delete button', async () => {
     expect(screen.getByTestId('map-view')).toBeTruthy();
   });
 
-  const input = screen.getByPlaceholderText('Pon tu estado...');
+  const input = screen.getByTestId('map-label-input');
   fireEvent.changeText(input, 'Hola');
 
   // primero crear label
@@ -359,7 +450,7 @@ test('deletes label when user already has one', async () => {
     expect(screen.getByTestId('map-view')).toBeTruthy();
   });
 
-  const input = screen.getByPlaceholderText('Pon tu estado...');
+  const input = screen.getByTestId('map-label-input');
 
   fireEvent.changeText(input, 'Algo');
 
@@ -428,7 +519,7 @@ test('handles error in onUpdateLabel', async () => {
   render(<MapScreen />);
   await waitFor(() => screen.getByTestId('map-view'));
 
-  fireEvent.changeText(screen.getByPlaceholderText('Pon tu estado...'), 'new label');
+  fireEvent.changeText(screen.getByTestId('map-label-input'), 'new label');
   const updateBtn = await screen.findByText('checkmark-circle');
   fireEvent.press(updateBtn);
 
@@ -519,7 +610,7 @@ test('deletes label when tempLabel is only whitespaces', async () => {
   render(<MapScreen />);
   await waitFor(() => screen.getByTestId('map-view'));
 
-  const input = screen.getByPlaceholderText('Pon tu estado...');
+  const input = screen.getByTestId('map-label-input');
   fireEvent.changeText(input, '   ');
 
   const saveButton = await screen.findByText('checkmark-circle');
@@ -540,7 +631,7 @@ test('shows alert when deleteLabel fails', async () => {
   render(<MapScreen />);
   await waitFor(() => screen.getByTestId('map-view'));
 
-  const input = screen.getByPlaceholderText('Pon tu estado...');
+  const input = screen.getByTestId('map-label-input');
   fireEvent.changeText(input, 'Hola');
 
   const updateBtn = await screen.findByText('checkmark-circle');

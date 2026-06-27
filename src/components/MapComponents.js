@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, Text, ActivityIndicator, Pressable, StyleSheet } from 'react-native';
-import { colors, fontSizes } from '../theme';
+import { fontSizes, useTheme } from '../theme/index';
 
 export function CoordsCard({ lastSent }) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   if (!lastSent) return null;
   return (
     <View style={styles.syncInfoCard}>
@@ -14,6 +17,9 @@ export function CoordsCard({ lastSent }) {
 }
 
 export function StatusView({ loading, emoji, title, message, action }) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   return (
     <View style={styles.statusContainer}>
       {loading && <ActivityIndicator size="large" color={colors.primary} />}
@@ -33,6 +39,9 @@ export function StatusView({ loading, emoji, title, message, action }) {
 }
 
 export function SyncBadge({ status }) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   const config = {
     syncing:  { color: '#F59E0B', text: '⟳' },
     synced:   { color: '#10B981', text: '●' },
@@ -48,7 +57,7 @@ export function SyncBadge({ status }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   syncInfoCard: { marginTop: 2 },
   coordsLastSent: { fontSize: fontSizes.xs, color: colors.textMuted },
   

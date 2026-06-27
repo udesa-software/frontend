@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 
 export function AppButton({
   title,
@@ -12,6 +12,9 @@ export function AppButton({
   textStyle,
   ...props
 }) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
+
   const getContainerStyle = () => {
     switch (variant) {
       case 'secondary':
@@ -67,7 +70,7 @@ export function AppButton({
 }
 
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,

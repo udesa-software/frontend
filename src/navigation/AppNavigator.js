@@ -19,7 +19,8 @@ import { MapScreen } from '../screens/MapScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { UserProfileScreen } from '../screens/UserProfileScreen';
 import { View, ActivityIndicator, Text } from 'react-native';
-import { colors, spacing } from '../theme';
+import { spacing } from '../theme';
+import { ThemeProvider, useTheme } from '../theme/index';
 import { usersApi } from '../api/users';
 
 const Stack = createNativeStackNavigator();
@@ -37,6 +38,8 @@ const linking = {
 };
 
 function MainTabs() {
+  const { colors } = useTheme();
+
   // H10 CA.1: heartbeat — registra actividad del usuario cada 60s para tracking de presencia.
   // Solo corre mientras MainTabs está montado (usuario autenticado con la app en foreground).
   useEffect(() => {
@@ -104,7 +107,8 @@ function MainTabs() {
 }
 
 function Navigator() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const { colors, isThemeLoaded } = useTheme();
 
   useEffect(() => {
     if (user) {
@@ -113,7 +117,7 @@ function Navigator() {
     }
   }, [user]);
 
-  if (isLoading) {
+  if (isAuthLoading || !isThemeLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -146,6 +150,10 @@ function Navigator() {
               name="UserProfile"
               component={UserProfileScreen}
             />
+            <Stack.Screen
+              name="LocationMap"
+              component={MapScreen}
+            />
           </Stack.Group>
         ) : (
           <>
@@ -162,8 +170,10 @@ function Navigator() {
 
 export function AppNavigator() {
   return (
-    <AuthProvider>
-      <Navigator />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Navigator />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
