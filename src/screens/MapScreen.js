@@ -302,7 +302,7 @@ export function MapScreen() {
                 coordinate={{ latitude: jitterLat, longitude: jitterLon }} 
                 zIndex={10 + index}
               >
-                <View style={[styles.miniMarker, { backgroundColor: '#FF6B6B' }]} />
+                <View style={[styles.miniMarker, { backgroundColor: friend.pinColor || '#FF6B6B' }]} />
                 <Callout style={styles.callout}>
                   <View>
                     <Text style={styles.calloutName}>{friend.username}</Text>

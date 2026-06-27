@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableOpacity, Switch } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 import { AppButton } from '../components/AppButton';
 import { AppInput } from '../components/AppInput';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { usersApi } from '../api/users';
-import { getPrivacyStatus, setPrivacyStatus } from '../api/location';
+import { getPrivacyStatus, setPrivacyStatus, getPinColor, updatePinColor, updateLocation } from '../api/location';
+import { PIN_COLORS, PIN_COLOR_KEY, DEFAULT_PIN_COLOR } from '../constants/pinColors';
 import { useNavigation } from '@react-navigation/native';
 
 const ALLOWED_FREQUENCIES = [5, 15, 30];
@@ -16,11 +19,13 @@ export function PreferencesScreen() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   const [radiusKm, setRadiusKm] = useState('25');
   const [frequency, setFrequency] = useState(5);
   const [isPrivate, setIsPrivate] = useState(false);
-  
+  const [pinColor, setPinColor] = useState(DEFAULT_PIN_COLOR);
+  const [isSavingPin, setIsSavingPin] = useState(false);
+
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -28,29 +33,38 @@ export function PreferencesScreen() {
     const fetchPreferences = async () => {
       try {
         setIsLoading(true);
-        const [prefsRes, privacyRes] = await Promise.allSettled([
-          usersApi.getPreferences(),
-          getPrivacyStatus()
+        const [settledResults, storedColor] = await Promise.all([
+          Promise.allSettled([usersApi.getPreferences(), getPrivacyStatus(), getPinColor()]),
+          AsyncStorage.getItem(PIN_COLOR_KEY),
         ]);
 
-        if (prefsRes.status === 'fulfilled') {
-          const data = prefsRes.value.data;
+        const [prefsSettle, privacySettle, pinColorSettle] = settledResults;
+
+        if (prefsSettle.status === 'fulfilled') {
+          const data = prefsSettle.value.data;
           if (data) {
             if (data.search_radius_km) setRadiusKm(data.search_radius_km.toString());
             if (data.location_update_frequency) setFrequency(data.location_update_frequency);
           }
         } else {
-          console.error('Error fetching general preferences:', prefsRes.reason);
+          console.error('Error fetching general preferences:', prefsSettle.reason);
           setErrorMsg('Error al cargar preferencias.');
         }
 
-        if (privacyRes.status === 'fulfilled') {
-          const privacyData = privacyRes.value;
+        if (privacySettle.status === 'fulfilled') {
+          const privacyData = privacySettle.value;
           if (privacyData) {
             setIsPrivate(!!privacyData.isPrivate);
           }
-        } else {
-          console.error('Error fetching privacy status:', privacyRes.reason);
+        }
+
+        // Backend es fuente de verdad; AsyncStorage como fallback si falla o no tiene ubicación
+        if (pinColorSettle.status === 'fulfilled' && PIN_COLORS.includes(pinColorSettle.value?.pinColor)) {
+          const backendColor = pinColorSettle.value.pinColor;
+          setPinColor(backendColor);
+          await AsyncStorage.setItem(PIN_COLOR_KEY, backendColor).catch(() => {});
+        } else if (storedColor && PIN_COLORS.includes(storedColor)) {
+          setPinColor(storedColor);
         }
       } catch (err) {
         setErrorMsg('Error al cargar preferencias.');
@@ -66,7 +80,7 @@ export function PreferencesScreen() {
     setIsPrivate(value);
     setErrorMsg('');
     setSuccessMsg('');
-    
+
     try {
       await setPrivacyStatus(value);
       setSuccessMsg(`Modo ${value ? 'Privado' : 'Público'} activado.`);
@@ -79,10 +93,42 @@ export function PreferencesScreen() {
     }
   };
 
+  // H9 CA.2: guarda el color en AsyncStorage y en el backend
+  const handleSelectPinColor = async (color) => {
+    const previousColor = pinColor;
+    setPinColor(color);
+    setIsSavingPin(true);
+    try {
+      await Promise.all([
+        AsyncStorage.setItem(PIN_COLOR_KEY, color),
+        updatePinColor(color),
+      ]);
+
+      // Mandar ubicación para que el nuevo color quede registrado en el historial
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+          .catch(() => Location.getLastKnownPositionAsync());
+        if (position) {
+          await updateLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude })
+            .catch(() => {}); // ignorar 429 si actualizó hace poco
+        }
+      }
+    } catch (err) {
+      setPinColor(previousColor);
+      await AsyncStorage.setItem(PIN_COLOR_KEY, previousColor).catch(() => {});
+      const apiError = err.response?.data?.message || err.message || 'Error al guardar el color.';
+      setErrorMsg(apiError);
+      setTimeout(() => setErrorMsg(''), 5000);
+    } finally {
+      setIsSavingPin(false);
+    }
+  };
+
   const handleSave = async () => {
     setErrorMsg('');
     setSuccessMsg('');
-    
+
     // Parse the input manually before sending, fallback to input text to let backend reject it if totally invalid
     const radiusParsed = parseInt(radiusKm, 10);
     const radiusToSend = isNaN(radiusParsed) ? radiusKm : radiusParsed;
@@ -111,8 +157,8 @@ export function PreferencesScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : null}
     >
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -138,7 +184,7 @@ export function PreferencesScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Ubicación</Text>
           <Text style={styles.label}>Frecuencia de actualización</Text>
-          
+
           <View style={styles.pillsContainer}>
             {ALLOWED_FREQUENCIES.map((freqValue) => {
               const isSelected = frequency === freqValue;
@@ -159,13 +205,39 @@ export function PreferencesScreen() {
           <Text style={styles.helperText}>Frecuencia con la que la app actualizará y compartirá tu ubicación.</Text>
         </View>
 
+        {/* H9: selección del color del pin */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Color de tu pin</Text>
+          <Text style={styles.helperText}>
+            Elegí el color con el que aparecés en el mapa de tus amigos.
+          </Text>
+          <View style={styles.colorRow}>
+            {PIN_COLORS.map((c) => (
+              <TouchableOpacity
+                key={c}
+                testID={`pin-color-${c}`}
+                onPress={() => handleSelectPinColor(c)}
+                disabled={isSavingPin}
+                style={[
+                  styles.colorSwatch,
+                  { backgroundColor: c },
+                  pinColor === c && styles.colorSwatchSelected,
+                ]}
+              />
+            ))}
+          </View>
+          {isSavingPin && (
+            <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: spacing.sm }} />
+          )}
+        </View>
+
         <View style={styles.card}>
           <View style={styles.switchRow}>
             <View style={{ flex: 1, paddingRight: spacing.md }}>
               <Text style={styles.sectionTitle}>Modo Privado ⚡</Text>
               <Text style={styles.helperText}>
-                {isPrivate 
-                  ? 'Tu perfil es privado. Solo tus amigos pueden ver tu ubicación y no aparecerás en búsquedas globales.' 
+                {isPrivate
+                  ? 'Tu perfil es privado. Solo tus amigos pueden ver tu ubicación y no aparecerás en búsquedas globales.'
                   : 'Tu perfil es público. Otros usuarios pueden encontrarte y ver tu ubicación en el radar.'}
               </Text>
             </View>
@@ -231,7 +303,7 @@ const getStyles = (colors) => StyleSheet.create({
   },
   scroll: {
     padding: spacing.lg,
-    paddingTop: spacing.xxxl,
+    paddingTop: spacing.xxl,
     paddingBottom: spacing.xxl,
   },
   title: {
@@ -299,7 +371,7 @@ const getStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     marginHorizontal: spacing.xs,
-    borderRadius: radii.round,
+    borderRadius: radii.full,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,
@@ -315,6 +387,22 @@ const getStyles = (colors) => StyleSheet.create({
   },
   pillTextSelected: {
     color: '#fff',
+  },
+  colorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+  },
+  colorSwatch: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  colorSwatchSelected: {
+    borderColor: colors.text,
+    transform: [{ scale: 1.15 }],
   },
   saveBtn: {
     marginTop: spacing.md,

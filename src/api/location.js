@@ -117,6 +117,23 @@ export async function getRadar({ latitude, longitude }) {
 }
 
 /**
+ * Guarda el color del pin elegido por el usuario.
+ * Solo acepta los 5 colores de la paleta predefinida.
+ *
+ * @param {string} pinColor - Hex del color (ej: '#FF6B6B')
+ * @returns {Promise<Object>} { message, pinColor }
+ */
+export async function getPinColor() {
+  const response = await apiClient.get('/locations/pin-color');
+  return response.data;
+}
+
+export async function updatePinColor(pinColor) {
+  const response = await apiClient.patch('/locations/pin-color', { pinColor });
+  return response.data;
+}
+
+/**
  * Obtiene el perfil detallado de un amigo: biografía, presencia online e historial
  * de ubicaciones recientes (vacío si el amigo está en modo privado).
  *
