@@ -5,7 +5,8 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 const mockLogout = jest.fn();
 const mockDeleteAccount = jest.fn();
 const mockUpdateProfile = jest.fn();
-const mockUploadProfilePhoto = jest.fn();
+const mockPrepareAvatarUpload = jest.fn();
+const mockConfirmAvatarUpload = jest.fn();
 const mockDeleteProfilePhoto = jest.fn();
 
 // Default user (no biography)
@@ -32,7 +33,9 @@ jest.mock('../../src/context/AuthContext', () => ({
     logout: mockLogout,
     deleteAccount: mockDeleteAccount,
     updateProfile: mockUpdateProfile,
-    uploadProfilePhoto: mockUploadProfilePhoto,
+    refreshProfile: jest.fn().mockResolvedValue(undefined),
+    prepareAvatarUpload: mockPrepareAvatarUpload,
+    confirmAvatarUpload: mockConfirmAvatarUpload,
     deleteProfilePhoto: mockDeleteProfilePhoto,
   }),
 }));
@@ -57,10 +60,25 @@ import * as ImagePicker from 'expo-image-picker';
 import { ProfileScreen } from '../../src/screens/ProfileScreen';
 import { Alert } from 'react-native';
 
+// Mock global fetch para el flujo de subida directa a Supabase
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
+
+const mockSuccessfulFetch = () => {
+  mockFetch
+    .mockResolvedValueOnce({ blob: () => Promise.resolve({}) })  // fetch(fileUri)
+    .mockResolvedValueOnce({ ok: true });                        // fetch(signedUrl, PUT)
+};
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 describe('ProfileScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Defaults felices para prepare/confirm
+    mockPrepareAvatarUpload.mockResolvedValue({
+      data: { signedUrl: 'https://supabase.co/upload/test', filename: 'user-123.jpg' },
+    });
+    mockConfirmAvatarUpload.mockResolvedValue({});
   });
 
   it('renders user information correctly', async () => {
@@ -326,14 +344,14 @@ describe('ProfileScreen', () => {
         canceled: false,
         assets: [{ uri: 'file://local/path/photo.jpg' }],
       });
-      mockUploadProfilePhoto.mockResolvedValueOnce({});
+      mockSuccessfulFetch();
 
       const { getByTestId } = render(<ProfileScreen />);
       await act(async () => {
         fireEvent.press(getByTestId('profile-photo-container'));
       });
 
-      await waitFor(() => expect(mockUploadProfilePhoto).toHaveBeenCalled());
+      await waitFor(() => expect(mockConfirmAvatarUpload).toHaveBeenCalled());
       expect(alertSpy).toHaveBeenCalledWith('Éxito', 'Foto de perfil actualizada correctamente.');
     });
 
@@ -345,7 +363,7 @@ describe('ProfileScreen', () => {
         fireEvent.press(getByTestId('profile-photo-container'));
       });
 
-      expect(mockUploadProfilePhoto).not.toHaveBeenCalled();
+      expect(mockPrepareAvatarUpload).not.toHaveBeenCalled();
     });
 
     it('rejects upload if file format is invalid (e.g. .gif)', async () => {
@@ -362,15 +380,15 @@ describe('ProfileScreen', () => {
       await waitFor(() =>
         expect(alertSpy).toHaveBeenCalledWith('Formato Inválido', expect.stringContaining('JPG, PNG'))
       );
-      expect(mockUploadProfilePhoto).not.toHaveBeenCalled();
+      expect(mockPrepareAvatarUpload).not.toHaveBeenCalled();
     });
 
-    it('shows error alert if uploadProfilePhoto throws with a message', async () => {
+    it('shows error alert if prepareAvatarUpload throws with a message', async () => {
       ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
         canceled: false,
         assets: [{ uri: 'file://local/path/photo.jpg' }],
       });
-      mockUploadProfilePhoto.mockRejectedValueOnce(new Error('Server error 500'));
+      mockPrepareAvatarUpload.mockRejectedValueOnce(new Error('Server error 500'));
 
       const { getByTestId } = render(<ProfileScreen />);
       await act(async () => {
@@ -382,12 +400,12 @@ describe('ProfileScreen', () => {
       );
     });
 
-    it('shows generic error alert if uploadProfilePhoto throws without message', async () => {
+    it('shows generic error alert if prepareAvatarUpload throws without message', async () => {
       ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
         canceled: false,
         assets: [{ uri: 'file://local/path/photo.png' }],
       });
-      mockUploadProfilePhoto.mockRejectedValueOnce({});
+      mockPrepareAvatarUpload.mockRejectedValueOnce({});
 
       const { getByTestId } = render(<ProfileScreen />);
       await act(async () => {
@@ -427,14 +445,14 @@ describe('ProfileScreen', () => {
         canceled: false,
         assets: [{ uri: 'file://camera/capture.jpg' }],
       });
-      mockUploadProfilePhoto.mockResolvedValueOnce({});
+      mockSuccessfulFetch();
 
       const { getByTestId } = render(<ProfileScreen />);
       await act(async () => {
         fireEvent.press(getByTestId('profile-photo-container'));
       });
 
-      await waitFor(() => expect(mockUploadProfilePhoto).toHaveBeenCalled());
+      await waitFor(() => expect(mockConfirmAvatarUpload).toHaveBeenCalled());
     });
 
     it('shows error if camera permission is denied', async () => {
@@ -471,7 +489,7 @@ describe('ProfileScreen', () => {
         fireEvent.press(getByTestId('profile-photo-container'));
       });
 
-      expect(mockUploadProfilePhoto).not.toHaveBeenCalled();
+      expect(mockPrepareAvatarUpload).not.toHaveBeenCalled();
     });
 
     it('shows error if launchCameraAsync throws', async () => {
@@ -613,6 +631,7 @@ describe('ProfileScreen', () => {
         canceled: false,
         assets: [{ uri: 'file://local/path.png', type: 'image', fileName: 'test.png' }]
       });
+      mockSuccessfulFetch();
 
       const { getByTestId } = render(<ProfileScreen />);
       await act(async () => {
@@ -622,7 +641,7 @@ describe('ProfileScreen', () => {
       await waitFor(() => {
         expect(ImagePicker.launchCameraAsync).toHaveBeenCalled();
       });
-      expect(mockUploadProfilePhoto).toHaveBeenCalled();
+      await waitFor(() => expect(mockConfirmAvatarUpload).toHaveBeenCalled());
     });
 
     it('shows error if camera permission is denied', async () => {
@@ -683,23 +702,23 @@ describe('ProfileScreen', () => {
       });
     });
 
-    it('shows error if uploadProfilePhoto fails', async () => {
-      ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ status: 'granted' });
+    it('shows error if upload to Supabase fails', async () => {
       ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
         canceled: false,
         assets: [{ uri: 'file://local/path.jpg', type: 'image', fileName: 'test.jpg' }]
       });
-      mockUploadProfilePhoto.mockRejectedValueOnce(new Error('Upload failed'));
+      mockFetch
+        .mockResolvedValueOnce({ blob: () => Promise.resolve({}) })
+        .mockResolvedValueOnce({ ok: false });
 
-      const alertSpy = jest.spyOn(Alert, 'alert');
       const { getByTestId } = render(<ProfileScreen />);
-      
+
       await act(async () => {
         fireEvent.press(getByTestId('profile-photo-container'));
       });
 
       await waitFor(() => {
-        expect(alertSpy).toHaveBeenCalledWith('Error al subir foto', 'Upload failed');
+        expect(alertSpy).toHaveBeenCalledWith('Error al subir foto', 'Error al subir la imagen al almacenamiento.');
       });
     });
 

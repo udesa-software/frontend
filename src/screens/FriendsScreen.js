@@ -7,6 +7,7 @@ import { PendingRequestsList } from '../components/PendingRequestsList';
 import { FriendsList } from '../components/FriendsList';
 import { NearbyUsersList } from '../components/NearbyUsersList';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
+import { UserAvatar } from '../components/UserAvatar';
 import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 
@@ -100,9 +101,7 @@ export function FriendsScreen() {
           activeOpacity={0.7}
         >
           <View style={styles.userInfo}>
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>{item.username.charAt(0).toUpperCase()}</Text>
-            </View>
+            <UserAvatar username={item.username} photoUrl={item.profile_photo_url} />
             <View style={styles.userDetails}>
               <Text style={styles.username}>{item.username}</Text>
             </View>
@@ -132,9 +131,7 @@ export function FriendsScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.userInfo}>
-           <View style={styles.avatarPlaceholder}>
-             <Text style={styles.avatarText}>{item.username.charAt(0).toUpperCase()}</Text>
-           </View>
+           <UserAvatar username={item.username} photoUrl={item.profile_photo_url} />
            <View style={styles.userDetails}>
              <Text style={styles.username}>{item.username}</Text>
            </View>

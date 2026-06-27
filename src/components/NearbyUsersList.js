@@ -11,6 +11,7 @@ import {
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
 import { AppButton } from './AppButton';
+import { UserAvatar } from './UserAvatar';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { getRadar } from '../api/location';
 import { friendsApi } from '../api/friends';
@@ -112,11 +113,7 @@ export function NearbyUsersList() {
           activeOpacity={0.7}
         >
           <View style={styles.userInfo}>
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>
-                {(item.username || 'U').charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            <UserAvatar username={item.username} photoUrl={item.profile_photo_url} />
             <View style={styles.userDetails}>
               <Text style={styles.username}>{item.username}</Text>
               <View style={styles.distancePill}>
@@ -149,11 +146,7 @@ export function NearbyUsersList() {
         activeOpacity={0.7}
       >
         <View style={styles.userInfo}>
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>
-              {(item.username || 'U').charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <UserAvatar username={item.username} photoUrl={item.profile_photo_url} />
           <View style={styles.userDetails}>
             <Text style={styles.username}>{item.username}</Text>
             <View style={styles.distancePill}>

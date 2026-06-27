@@ -7,10 +7,15 @@ import { AppInput } from '../components/AppInput';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import * as ImagePicker from 'expo-image-picker';
 import { getImageUrl } from '../api/client';
+import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 
 export function ProfileScreen() {
-  const { user, logout, deleteAccount, updateProfile, uploadProfilePhoto, deleteProfilePhoto } = useAuth();
+  const { user, logout, deleteAccount, updateProfile, prepareAvatarUpload, confirmAvatarUpload, deleteProfilePhoto, refreshProfile } = useAuth();
+
+  useEffect(() => {
+    if (user?.id) refreshProfile(user.id);
+  }, []);
   const navigation = useNavigation();
   const { colors } = useTheme();
   const styles = getStyles(colors);
@@ -60,8 +65,9 @@ export function ProfileScreen() {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        await uploadImage(result.assets[0].uri);
+      if (!result.canceled && result.assets?.length > 0) {
+        const asset = result.assets[0];
+        await uploadImage(asset.uri, asset.mimeType);
       }
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo seleccionar la imagen');
@@ -82,34 +88,47 @@ export function ProfileScreen() {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        await uploadImage(result.assets[0].uri);
+      if (!result.canceled && result.assets?.length > 0) {
+        const asset = result.assets[0];
+        await uploadImage(asset.uri, asset.mimeType);
       }
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo tomar la foto');
     }
   };
 
-  const uploadImage = async (uri) => {
+  const uploadImage = async (fileUri, mimeType) => {
     try {
       setIsSaving(true);
 
-      const filename = uri.split('/').pop();
-      const match = /\.(\w+)$/.exec(filename);
-      const ext = match ? match[1].toLowerCase() : '';
-      const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
-
-      if (ext !== 'png' && ext !== 'jpg' && ext !== 'jpeg') {
-        Alert.alert('Formato Inválido', 'El sistema solo acepta formatos válidos de imagen (JPG, PNG).');
+      // Validación frontend: inferir mimeType desde extensión si no viene del picker
+      const ALLOWED_MIME = ['image/jpeg', 'image/jpg', 'image/png'];
+      const ext = fileUri?.split('.').pop()?.toLowerCase();
+      const EXT_TO_MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' };
+      const resolvedMimeType = ALLOWED_MIME.includes(mimeType) ? mimeType : EXT_TO_MIME[ext];
+      if (!resolvedMimeType) {
+        Alert.alert('Formato Inválido', 'Solo se aceptan imágenes JPG, PNG.');
         return;
       }
 
-      // FormData con fetch nativo (ver users.js) — evita el problema de
-      // boundary que tenía axios al setear Content-Type manualmente.
-      const formData = new FormData();
-      formData.append('profilePhoto', { uri, name: filename, type: mimeType });
+      // Paso 1: pedir signed URL al backend (request chico, pasa el WAF)
+      const { data: prepareData } = await prepareAvatarUpload(resolvedMimeType);
+      const { signedUrl, filename } = prepareData;
 
-      await uploadProfilePhoto(formData);
+      // Paso 2: subir directo a Supabase (bypassa el AWS WAF del ALB)
+      const fileResponse = await fetch(fileUri);
+      const blob = await fileResponse.blob();
+      const uploadRes = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': resolvedMimeType },
+        body: blob,
+      });
+      if (!uploadRes.ok) {
+        throw new Error('Error al subir la imagen al almacenamiento.');
+      }
+
+      // Paso 3: confirmar al backend (request chico, pasa el WAF)
+      await confirmAvatarUpload(filename);
       Alert.alert('Éxito', 'Foto de perfil actualizada correctamente.');
     } catch (err) {
       const errMsg = err?.message || 'Error al subir foto.';

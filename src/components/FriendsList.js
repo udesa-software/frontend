@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshCont
 import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { AppButton } from './AppButton';
+import { UserAvatar } from './UserAvatar';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import { friendsApi } from '../api/friends';
 import { getFriendsLocations } from '../api/location';
@@ -48,6 +49,7 @@ export function FriendsList({ onGoToSearch }) {
         newFriends = rawFriends.map(f => ({
           friend_id: f.userId,
           friend_username: f.username,
+          profile_photo_url: f.profile_photo_url ?? null,
           distance: f.distance,
           distanceMeters: f.distanceMeters,
           latitude: f.latitude,
@@ -172,11 +174,7 @@ export function FriendsList({ onGoToSearch }) {
       >
         {/* Avatar con indicador de presencia online (H10 CA.2) */}
         <View style={styles.avatarWrapper}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {(item.friend_username || 'U').charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <UserAvatar username={item.friend_username} photoUrl={item.profile_photo_url} size={40} />
           {/* CA.2: punto verde si online, gris si offline */}
           <View
             testID={`online-dot-${item.friend_id}`}

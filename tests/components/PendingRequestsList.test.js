@@ -205,7 +205,7 @@ describe('PendingRequestsList', () => {
       data: { data: [{ requester_id: 'noName', created_at: new Date().toISOString() }] }
     });
     const { findByText } = render(<PendingRequestsList />);
-    expect(await findByText('U')).toBeTruthy();
+    expect(await findByText('?')).toBeTruthy();
   });
 
   it('handles missing error message in catch blocks', async () => {

@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { aiApi } from '../api/ai';
 import { friendsApi } from '../api/friends';
 import { colors, spacing, fontSizes, radii } from '../theme';
+import { UserAvatar } from '../components/UserAvatar';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.4;
@@ -248,12 +249,7 @@ export function DiscoverScreen() {
 
               {/* Contenido de la Carta */}
               <View style={styles.cardHeader}>
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarText}>
-                    {item.username.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                
+                <UserAvatar username={item.username} photoUrl={item.profile_photo_url} size={56} />
                 <View style={styles.titleInfo}>
                   <Text style={styles.username}>@{item.username}</Text>
                 </View>
@@ -282,11 +278,7 @@ export function DiscoverScreen() {
               style={[styles.cardStyle, styles.stackedCard, { zIndex: 1 }]}
             >
               <View style={styles.cardHeader}>
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarText}>
-                    {item.username.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                <UserAvatar username={item.username} photoUrl={item.profile_photo_url} size={56} />
                 <View style={styles.titleInfo}>
                   <Text style={styles.username}>@{item.username}</Text>
                 </View>
