@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
@@ -7,12 +7,21 @@ import { AppInput } from '../components/AppInput';
 import { spacing, fontSizes, radii, useTheme } from '../theme/index';
 import * as ImagePicker from 'expo-image-picker';
 import { getImageUrl } from '../api/client';
+import { friendsApi } from '../api/friends';
 
 export function ProfileScreen() {
   const { user, logout, deleteAccount, updateProfile, uploadProfilePhoto, deleteProfilePhoto } = useAuth();
   const navigation = useNavigation();
   const { colors } = useTheme();
   const styles = getStyles(colors);
+
+  const [friendCount, setFriendCount] = useState(null);
+
+  useEffect(() => {
+    friendsApi.getFriendsList('alphabetical', 1)
+      .then(res => setFriendCount(res.data?.pagination?.total ?? null))
+      .catch(() => setFriendCount(null));
+  }, []);
 
   const handleSelectProfilePhoto = async () => {
     console.log('handleSelectProfilePhoto CALLED');
@@ -249,12 +258,16 @@ export function ProfileScreen() {
           <Text style={styles.sectionTitle}>Cuenta</Text>
           <View style={styles.card}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>ID de Usuario</Text>
-              <Text style={styles.infoValue}>{user.id?.slice(0, 8)}...</Text>
+              <Text style={styles.infoLabel}>Miembro desde</Text>
+              <Text style={styles.infoValue}>
+                {user.created_at
+                  ? new Date(user.created_at).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+                  : '-'}
+              </Text>
             </View>
             <View style={[styles.infoRow, styles.lastRow]}>
-              <Text style={styles.infoLabel}>Rol</Text>
-              <Text style={styles.infoValue}>{user.role || 'Usuario'}</Text>
+              <Text style={styles.infoLabel}>Amigos</Text>
+              <Text style={styles.infoValue}>{friendCount !== null ? friendCount : '-'}</Text>
             </View>
           </View>
         </View>
