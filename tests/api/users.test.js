@@ -56,73 +56,21 @@ describe('usersApi', () => {
     expect(apiClient.post).toHaveBeenCalledWith('/users/heartbeat');
   });
 
-  it('deleteProfilePhoto calls delete /users/profile-photo', async () => {
+  it('deleteProfilePhoto calls delete /users/avatar', async () => {
     apiClient.delete.mockResolvedValueOnce({});
     await usersApi.deleteProfilePhoto();
-    expect(apiClient.delete).toHaveBeenCalledWith('/users/profile-photo');
+    expect(apiClient.delete).toHaveBeenCalledWith('/users/avatar');
   });
 
-  describe('uploadProfilePhoto', () => {
-    let mockXHR;
-    beforeEach(() => {
-      mockXHR = {
-        open: jest.fn(),
-        setRequestHeader: jest.fn(),
-        send: jest.fn(),
-      };
-      global.XMLHttpRequest = jest.fn(() => mockXHR);
-      AsyncStorage.getItem.mockResolvedValue('fake-token');
-    });
+  it('prepareAvatarUpload calls post /users/avatar/prepare con mimeType', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { signedUrl: 'https://supabase.co/sign', filename: 'u-123.jpg' } });
+    await usersApi.prepareAvatarUpload('image/jpeg');
+    expect(apiClient.post).toHaveBeenCalledWith('/users/avatar/prepare', { mimeType: 'image/jpeg' });
+  });
 
-    it('resolves on successful upload', async () => {
-      const promise = usersApi.uploadProfilePhoto(new FormData());
-      await new Promise(process.nextTick);
-      mockXHR.status = 200;
-      mockXHR.responseText = JSON.stringify({ profile_photo_url: 'http://url' });
-      mockXHR.onload();
-      
-      const response = await promise;
-      expect(response.data.profile_photo_url).toBe('http://url');
-      expect(mockXHR.open).toHaveBeenCalledWith('POST', expect.stringContaining('/users/profile-photo'));
-      expect(mockXHR.setRequestHeader).toHaveBeenCalledWith('Authorization', 'Bearer fake-token');
-      expect(mockXHR.send).toHaveBeenCalled();
-    });
-
-    it('rejects with server error message if status is not 2xx', async () => {
-      const promise = usersApi.uploadProfilePhoto(new FormData());
-      await new Promise(process.nextTick);
-      mockXHR.status = 400;
-      mockXHR.responseText = JSON.stringify({ message: 'Formato inválido' });
-      mockXHR.onload();
-      
-      await expect(promise).rejects.toThrow('Formato inválido');
-    });
-
-    it('rejects with fallback error message if status is not 2xx', async () => {
-      const promise = usersApi.uploadProfilePhoto(new FormData());
-      await new Promise(process.nextTick);
-      mockXHR.status = 500;
-      mockXHR.responseText = JSON.stringify({ error: 'Fallo interno' });
-      mockXHR.onload();
-      
-      await expect(promise).rejects.toThrow('Fallo interno');
-    });
-
-    it('rejects with generic error if response is not json', async () => {
-      const promise = usersApi.uploadProfilePhoto(new FormData());
-      await new Promise(process.nextTick);
-      mockXHR.responseText = 'Internal Server Error';
-      mockXHR.onload();
-      
-      await expect(promise).rejects.toThrow('Error al procesar la respuesta del servidor.');
-    });
-
-    it('rejects on network error', async () => {
-      const promise = usersApi.uploadProfilePhoto(new FormData());
-      await new Promise(process.nextTick);
-      mockXHR.onerror();
-      
-      await expect(promise).rejects.toThrow('Error de red al subir la foto.');
-    });
+  it('confirmAvatarUpload calls post /users/avatar/confirm con filename', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { profile_photo_url: 'https://supabase.co/u-123.jpg' } });
+    await usersApi.confirmAvatarUpload('u-123.jpg');
+    expect(apiClient.post).toHaveBeenCalledWith('/users/avatar/confirm', { filename: 'u-123.jpg' });
   });
 });

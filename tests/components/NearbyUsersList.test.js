@@ -297,13 +297,13 @@ describe('NearbyUsersList', () => {
     await findByText('D'); // avatar initial
   });
 
-  it('uses U as avatar fallback when username is empty', async () => {
+  it('uses ? as avatar fallback when username is empty', async () => {
     grantedLocation();
     getRadar.mockResolvedValueOnce({
       users: [{ userId: 'u1', username: '', distance: '100 m', distanceMeters: 100 }],
     });
 
     const { findByText } = render(<NearbyUsersList />);
-    await findByText('U'); // fallback
+    await findByText('?'); // fallback
   });
 });

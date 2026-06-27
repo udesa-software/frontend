@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { aiApi } from '../api/ai';
 import { friendsApi } from '../api/friends';
 import { colors, spacing, fontSizes, radii } from '../theme';
+import { UserAvatar } from '../components/UserAvatar';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.4;
@@ -45,6 +46,7 @@ export function DiscoverScreen() {
   // siempre valdría 0 dentro del handler.
   const currentIndexRef = useRef(0);
   const recommendationsRef = useRef([]);
+  const swipedUserIdsRef = useRef(new Set());
 
   // Resetear la posición de la carta DESPUÉS de que React confirma
   // el nuevo currentIndex en pantalla. Hacerlo antes causaría que
@@ -71,8 +73,9 @@ export function DiscoverScreen() {
     setIsLoading(true);
     try {
       const data = await aiApi.getRecommendations(user);
-      recommendationsRef.current = data;
-      setRecommendations(data);
+      const pendingRecommendations = data.filter((item) => !swipedUserIdsRef.current.has(item.id));
+      recommendationsRef.current = pendingRecommendations;
+      setRecommendations(pendingRecommendations);
       setCurrentIndex(0);
     } catch (err) {
       console.error('Error fetching recommendations:', err);
@@ -139,6 +142,9 @@ export function DiscoverScreen() {
     // del panResponder (que captura currentIndex=0 del primer render).
     const idx = currentIndexRef.current;
     const item = recommendationsRef.current[idx];
+    if (item) {
+      swipedUserIdsRef.current.add(item.id);
+    }
 
     // Avanzar el índice: el useEffect se encargará de hacer stopAnimation
     // + setValue DESPUÉS de que React confirme el nuevo currentIndex,
@@ -229,6 +235,7 @@ export function DiscoverScreen() {
           return (
             <Animated.View
               key={item.id}
+              testID="recommendation-card"
               style={[getCardStyle(), styles.cardStyle, { zIndex: 99 }]}
               {...panResponder.panHandlers}
             >
@@ -242,12 +249,7 @@ export function DiscoverScreen() {
 
               {/* Contenido de la Carta */}
               <View style={styles.cardHeader}>
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarText}>
-                    {item.username.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                
+                <UserAvatar username={item.username} photoUrl={item.profile_photo_url} size={56} />
                 <View style={styles.titleInfo}>
                   <Text style={styles.username}>@{item.username}</Text>
                 </View>
@@ -276,11 +278,7 @@ export function DiscoverScreen() {
               style={[styles.cardStyle, styles.stackedCard, { zIndex: 1 }]}
             >
               <View style={styles.cardHeader}>
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarText}>
-                    {item.username.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                <UserAvatar username={item.username} photoUrl={item.profile_photo_url} size={56} />
                 <View style={styles.titleInfo}>
                   <Text style={styles.username}>@{item.username}</Text>
                 </View>

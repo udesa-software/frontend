@@ -344,12 +344,12 @@ describe('FriendsList', () => {
   it('handles missing username fallback', async () => {
     const mockFriends = [{ friend_id: 5 }]; // No username
     friendsApi.getFriendsList.mockResolvedValueOnce({ data: { data: mockFriends } });
-    
+
     const { getByText } = render(<FriendsList onGoToSearch={mockOnGoToSearch} />);
-    
+
     await waitFor(() => {
-      // The avatar should show 'U' if username is missing
-      expect(getByText('U')).toBeTruthy();
+      // The avatar should show '?' if username is missing
+      expect(getByText('?')).toBeTruthy();
     });
   });
 

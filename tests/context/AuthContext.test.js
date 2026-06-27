@@ -15,6 +15,10 @@ jest.mock('../../src/api/users', () => ({
   usersApi: {
     deleteAccount: jest.fn(),
     updateProfile: jest.fn(),
+    getUserPublicProfile: jest.fn(),
+    prepareAvatarUpload: jest.fn(),
+    confirmAvatarUpload: jest.fn(),
+    deleteProfilePhoto: jest.fn(),
   },
 }));
 
@@ -248,5 +252,88 @@ describe('AuthContext', () => {
 
     expect(consoleSpy).toHaveBeenCalledWith('Failed to trigger post-login token registration:', expect.any(Error));
     consoleSpy.mockRestore();
+  });
+
+  it('handles refreshProfile correctly', async () => {
+    usersApi.getUserPublicProfile.mockResolvedValueOnce({
+      data: { profile_photo_url: 'https://example.com/photo.jpg' },
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      await result.current.refreshProfile('user-id-123');
+    });
+
+    expect(usersApi.getUserPublicProfile).toHaveBeenCalledWith('user-id-123');
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      'userData',
+      JSON.stringify({ profile_photo_url: 'https://example.com/photo.jpg' })
+    );
+  });
+
+  it('handles refreshProfile failure gracefully', async () => {
+    usersApi.getUserPublicProfile.mockRejectedValueOnce(new Error('Network error'));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      await result.current.refreshProfile('user-id-123');
+    });
+
+    // No debería lanzar error ni alterar el estado
+    expect(result.current.user).toBeNull();
+  });
+
+  it('handles prepareAvatarUpload correctly', async () => {
+    usersApi.prepareAvatarUpload.mockResolvedValueOnce({
+      data: { signedUrl: 'https://supabase.co/upload', filename: 'user-123.jpg' },
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    let response;
+    await act(async () => {
+      response = await result.current.prepareAvatarUpload('image/jpeg');
+    });
+
+    expect(usersApi.prepareAvatarUpload).toHaveBeenCalledWith('image/jpeg');
+    expect(response.data.filename).toBe('user-123.jpg');
+  });
+
+  it('handles confirmAvatarUpload correctly', async () => {
+    usersApi.confirmAvatarUpload.mockResolvedValueOnce({
+      data: { profile_photo_url: 'https://example.com/avatar.jpg' },
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    let url;
+    await act(async () => {
+      url = await result.current.confirmAvatarUpload('user-123.jpg');
+    });
+
+    expect(usersApi.confirmAvatarUpload).toHaveBeenCalledWith('user-123.jpg');
+    expect(url).toBe('https://example.com/avatar.jpg');
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      'userData',
+      JSON.stringify({ profile_photo_url: 'https://example.com/avatar.jpg' })
+    );
+  });
+
+  it('handles deleteProfilePhoto correctly', async () => {
+    usersApi.deleteProfilePhoto.mockResolvedValueOnce({});
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      await result.current.deleteProfilePhoto();
+    });
+
+    expect(usersApi.deleteProfilePhoto).toHaveBeenCalled();
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      'userData',
+      JSON.stringify({ profile_photo_url: null })
+    );
   });
 });

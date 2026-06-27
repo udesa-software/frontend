@@ -7,12 +7,26 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usersApi } from '../api/users';
 import { friendsApi } from '../api/friends';
 import { getFriendProfile } from '../api/location';
-import { colors, spacing, fontSizes, radii } from '../theme';
+import { spacing, fontSizes, radii, useTheme } from '../theme/index';
+import { UserAvatar } from '../components/UserAvatar';
+
+// H9: motivos de denuncia — valor enviado al backend (debe matchear reports.schemas.js) + label visible
+const REPORT_REASONS = [
+  { value: 'inappropriate_content', label: 'Contenido inapropiado' },
+  { value: 'harassment', label: 'Acoso o comportamiento abusivo' },
+  { value: 'spam', label: 'Spam' },
+  { value: 'fake_profile', label: 'Perfil falso' },
+  { value: 'other', label: 'Otro' },
+];
 
 function formatTimeAgo(dateString) {
   if (!dateString) return null;
@@ -50,6 +64,11 @@ export function UserProfileScreen() {
   const [locationData, setLocationData]     = useState(null); // { isHistoryPrivate, location_history }
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [actionLoading, setActionLoading]   = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportingOther, setReportingOther] = useState(false);
+  const [reasonDetail, setReasonDetail] = useState('');
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
 
   // ── Carga inicial ──────────────────────────────────────────────────────────
   const loadAll = useCallback(async () => {
@@ -201,6 +220,60 @@ export function UserProfileScreen() {
     }
   };
 
+  // H9: cierra el modal de denuncia y resetea el paso del texto libre, para que la
+  // próxima vez que se abra vuelva a arrancar en la lista de motivos.
+  const closeReportModal = () => {
+    setReportModalVisible(false);
+    setReportingOther(false);
+    setReasonDetail('');
+  };
+
+  // H9: denunciar usuario — motivos de la lista fija (no aplica a "Otro", ver handleSubmitOtherReason)
+  const handleReportReason = async (reason) => {
+    const name = profile?.username || initialUsername || 'este usuario';
+    closeReportModal();
+    try {
+      await friendsApi.reportUser(userId, name, reason);
+      Alert.alert('Denuncia enviada', `Gracias por reportar a ${name}. Vamos a revisar el caso.`);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || err.message || 'No se pudo enviar la denuncia');
+    }
+  };
+
+  // H9: denunciar usuario con motivo "Otro" — requiere descripción libre
+  const handleSubmitOtherReason = async () => {
+    const detail = reasonDetail.trim();
+    if (!detail) return;
+    const name = profile?.username || initialUsername || 'este usuario';
+    closeReportModal();
+    try {
+      await friendsApi.reportUser(userId, name, 'other', detail);
+      Alert.alert('Denuncia enviada', `Gracias por reportar a ${name}. Vamos a revisar el caso.`);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || err.message || 'No se pudo enviar la denuncia');
+    }
+  };
+
+  const handleOpenLocationOnMap = (loc) => {
+    const latitude = Number(loc?.latitude ?? loc?.lat);
+    const longitude = Number(loc?.longitude ?? loc?.lng ?? loc?.lon);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      Alert.alert('Ubicación no disponible', 'Este registro no tiene coordenadas para mostrar en el mapa.');
+      return;
+    }
+
+    navigation.navigate('LocationMap', {
+      historyLocation: {
+        latitude,
+        longitude,
+        label: loc?.label ?? null,
+        createdAt: loc?.createdAt ?? null,
+        username: profile?.username ?? initialUsername ?? 'Usuario',
+      },
+    });
+  };
+
   // ── Render botones de acción ──────────────────────────────────────────────
   const renderActionButtons = () => {
     if (!relationship || relationship.status === 'self') return null;
@@ -314,9 +387,7 @@ export function UserProfileScreen() {
           {/* Avatar + presencia */}
           <View style={styles.avatarSection}>
             <View style={styles.avatarRing}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initial}</Text>
-              </View>
+              <UserAvatar username={displayName} photoUrl={profile?.profile_photo_url} size={80} />
               {profile && (
                 <View
                   testID="online-status-dot"
@@ -371,7 +442,13 @@ export function UserProfileScreen() {
                 </View>
               ) : (
                 locationData.location_history.map((loc, index) => (
-                  <View key={index} testID={`location-item-${index}`} style={styles.locationItem}>
+                  <TouchableOpacity
+                    key={index}
+                    testID={`location-item-${index}`}
+                    style={styles.locationItem}
+                    onPress={() => handleOpenLocationOnMap(loc)}
+                    activeOpacity={0.85}
+                  >
                     <View style={styles.locationTimeline}>
                       <View style={[styles.timelineDot, index === 0 && styles.timelineDotFirst]} />
                       {index < locationData.location_history.length - 1 && (
@@ -383,8 +460,9 @@ export function UserProfileScreen() {
                         {loc.label ? `📍 ${loc.label}` : '📍 Ubicación registrada'}
                       </Text>
                       <Text style={styles.locationTime}>{formatTimeAgo(loc.createdAt)}</Text>
+                      <Text style={styles.locationHint}>Toque para ver en el mapa</Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))
               )}
             </View>
@@ -412,11 +490,82 @@ export function UserProfileScreen() {
                   <Text style={styles.blockBtnText}>Bloquear usuario</Text>
                 </TouchableOpacity>
               )}
+
+              {/* H9: denunciar usuario — disponible incluso si ya está bloqueado */}
+              <TouchableOpacity
+                testID="action-report"
+                style={styles.reportBtn}
+                onPress={() => setReportModalVisible(true)}
+              >
+                <Text style={styles.reportBtnText}>Denunciar usuario</Text>
+              </TouchableOpacity>
             </View>
           )}
 
         </ScrollView>
       )}
+
+      {/* H9: selector de motivo de denuncia (o descripción libre si el motivo es "Otro") */}
+      <Modal
+        visible={reportModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeReportModal}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Denunciar usuario</Text>
+            {!reportingOther ? (
+              <>
+                <Text style={styles.modalSubtitle}>Elegí el motivo de la denuncia</Text>
+                {REPORT_REASONS.map((r) => (
+                  <TouchableOpacity
+                    key={r.value}
+                    testID={`report-reason-${r.value}`}
+                    style={styles.reasonOption}
+                    onPress={() => (r.value === 'other' ? setReportingOther(true) : handleReportReason(r.value))}
+                  >
+                    <Text style={styles.reasonOptionText}>{r.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalSubtitle}>Contanos qué pasó</Text>
+                <TextInput
+                  testID="report-other-input"
+                  style={styles.otherReasonInput}
+                  placeholder="Describí el motivo de la denuncia..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  maxLength={500}
+                  value={reasonDetail}
+                  onChangeText={setReasonDetail}
+                  autoFocus
+                />
+                <TouchableOpacity
+                  testID="report-other-submit"
+                  style={[styles.reasonOption, !reasonDetail.trim() && styles.reasonOptionDisabled]}
+                  disabled={!reasonDetail.trim()}
+                  onPress={handleSubmitOtherReason}
+                >
+                  <Text style={styles.reasonOptionText}>Enviar denuncia</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            <TouchableOpacity
+              testID="report-cancel"
+              style={styles.reasonCancel}
+              onPress={closeReportModal}
+            >
+              <Text style={styles.reasonCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -425,7 +574,7 @@ export function UserProfileScreen() {
 const AVATAR_SIZE = 88;
 const DOT_SIZE    = 18;
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
 
   header: {
@@ -580,6 +729,7 @@ const styles = StyleSheet.create({
   },
   locationLabel: { color: colors.text, fontSize: fontSizes.sm, fontWeight: '500', marginBottom: 2 },
   locationTime:  { color: colors.textMuted, fontSize: fontSizes.xs },
+  locationHint:  { color: colors.primary, fontSize: fontSizes.xs, marginTop: 4, fontWeight: '600' },
 
   blockBtn: {
     padding: spacing.md,
@@ -591,5 +741,79 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     fontWeight: '600',
     textTransform: 'uppercase',
+  },
+
+  reportBtn: {
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  reportBtnText: {
+    color: '#f97316', // Orange-500 — consistente con el badge "En revisión" del backoffice
+    fontSize: fontSizes.sm,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+  },
+  modalTitle: {
+    fontSize: fontSizes.xl,
+    color: colors.text,
+    fontWeight: 'bold',
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: fontSizes.sm,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  reasonOption: {
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  reasonOptionDisabled: {
+    opacity: 0.4,
+  },
+  reasonOptionText: {
+    fontSize: fontSizes.md,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  otherReasonInput: {
+    minHeight: 90,
+    maxHeight: 160,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    color: colors.text,
+    fontSize: fontSizes.md,
+    padding: spacing.md,
+    textAlignVertical: 'top',
+    marginBottom: spacing.md,
+  },
+  reasonCancel: {
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  reasonCancelText: {
+    fontSize: fontSizes.md,
+    color: colors.textMuted,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

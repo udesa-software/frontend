@@ -5,7 +5,7 @@ import { UserProfileScreen } from '../../src/screens/UserProfileScreen';
 import { usersApi } from '../../src/api/users';
 import { friendsApi } from '../../src/api/friends';
 import { getFriendProfile } from '../../src/api/location';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 jest.mock('../../src/api/users', () => ({
   usersApi: {
@@ -23,6 +23,7 @@ jest.mock('../../src/api/friends', () => ({
     declineRequest: jest.fn(),
     blockUser: jest.fn(),
     unblockUser: jest.fn(),
+    reportUser: jest.fn(),
   }
 }));
 
@@ -117,6 +118,49 @@ describe('UserProfileScreen', () => {
     });
     const { findByText } = render(<UserProfileScreen />);
     expect(await findByText(/Café San Martín/)).toBeTruthy();
+  });
+
+  it('opens location map when pressing a history item with coordinates', async () => {
+    const navMock = useNavigation();
+    friendsApi.getRelationshipStatus.mockResolvedValue({ data: { status: 'friends' } });
+    getFriendProfile.mockResolvedValue({
+      isHistoryPrivate: false,
+      location_history: [{
+        label: 'Café San Martín',
+        createdAt: new Date(Date.now() - 60000).toISOString(),
+        latitude: -34.6037,
+        longitude: -58.3816,
+      }]
+    });
+
+    const { findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByTestId('location-item-0'));
+
+    expect(navMock.navigate).toHaveBeenCalledWith('LocationMap', {
+      historyLocation: expect.objectContaining({
+        latitude: -34.6037,
+        longitude: -58.3816,
+        label: 'Café San Martín',
+        username: 'juan',
+      }),
+    });
+  });
+
+  it('shows alert when history item has no coordinates', async () => {
+    const spy = jest.spyOn(Alert, 'alert');
+    friendsApi.getRelationshipStatus.mockResolvedValue({ data: { status: 'friends' } });
+    getFriendProfile.mockResolvedValue({
+      isHistoryPrivate: false,
+      location_history: [{ label: 'Café San Martín', createdAt: new Date().toISOString() }]
+    });
+
+    const { findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByTestId('location-item-0'));
+
+    expect(spy).toHaveBeenCalledWith(
+      'Ubicación no disponible',
+      'Este registro no tiene coordenadas para mostrar en el mapa.'
+    );
   });
 
   it('shows private message when friends but history is private', async () => {
@@ -372,5 +416,130 @@ describe('UserProfileScreen', () => {
     await findByText('Desbloquear usuario');
     fireEvent.press(await findByText('Desbloquear usuario'));
     await waitFor(() => expect(spy).toHaveBeenCalledWith('Error', 'No desbloqueable'));
+  });
+
+  // ── H9: Denunciar usuario ────────────────────────────────────────────────────
+
+  it('shows Denunciar usuario button when status is none', async () => {
+    const { findByText } = render(<UserProfileScreen />);
+    expect(await findByText('Denunciar usuario')).toBeTruthy();
+  });
+
+  it('shows Denunciar usuario button even when status is blocked', async () => {
+    friendsApi.getRelationshipStatus.mockResolvedValue({ data: { status: 'blocked' } });
+    const { findByText } = render(<UserProfileScreen />);
+    expect(await findByText('Denunciar usuario')).toBeTruthy();
+  });
+
+  it('handleReportReason: opens reason picker and sends report on selection', async () => {
+    friendsApi.reportUser.mockResolvedValue({ data: { message: 'Denuncia enviada' } });
+    const spy = jest.spyOn(Alert, 'alert');
+    const { findByText, findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-harassment'));
+    await waitFor(() =>
+      expect(friendsApi.reportUser).toHaveBeenCalledWith('user-1', 'juan', 'harassment')
+    );
+    await waitFor(() => expect(spy).toHaveBeenCalledWith('Denuncia enviada', expect.any(String)));
+  });
+
+  it('handleReportReason: shows alert on reportUser error', async () => {
+    friendsApi.reportUser.mockRejectedValueOnce({
+      response: { data: { error: 'Ya reportaste a este usuario, podés volver a hacerlo en 24 horas' } },
+    });
+    const spy = jest.spyOn(Alert, 'alert');
+    const { findByText, findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-spam'));
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith('Error', 'Ya reportaste a este usuario, podés volver a hacerlo en 24 horas')
+    );
+  });
+
+  // apiClient (src/api/client.js) normaliza los errores de axios a un Error plano con
+  // .message (sin .response) — este test reproduce esa forma real, no la forma cruda de axios.
+  it('handleReportReason: muestra err.message cuando el error no trae err.response (forma real de apiClient)', async () => {
+    friendsApi.reportUser.mockRejectedValueOnce(new Error('Network Error'));
+    const spy = jest.spyOn(Alert, 'alert');
+    const { findByText, findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-spam'));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith('Error', 'Network Error'));
+  });
+
+  it('report-cancel: closes the modal without sending a report', async () => {
+    const { findByText, findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-cancel'));
+    expect(friendsApi.reportUser).not.toHaveBeenCalled();
+  });
+
+  // ── H9: motivo "Otro" con descripción libre ─────────────────────────────────
+
+  it('tapping "Otro" shows the free-text input instead of sending immediately', async () => {
+    const { findByText, findByTestId, queryByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-other'));
+
+    expect(await findByTestId('report-other-input')).toBeTruthy();
+    expect(friendsApi.reportUser).not.toHaveBeenCalled();
+    expect(queryByTestId('report-reason-harassment')).toBeNull();
+  });
+
+  it('submit is disabled while the free-text field is empty', async () => {
+    const { findByText, findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-other'));
+
+    fireEvent.press(await findByTestId('report-other-submit'));
+    expect(friendsApi.reportUser).not.toHaveBeenCalled();
+  });
+
+  it('handleSubmitOtherReason: sends reportUser with reason "other" and the typed detail', async () => {
+    friendsApi.reportUser.mockResolvedValue({ data: { message: 'Denuncia enviada' } });
+    const spy = jest.spyOn(Alert, 'alert');
+    const { findByText, findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-other'));
+
+    fireEvent.changeText(await findByTestId('report-other-input'), '  Me mandó mensajes amenazantes  ');
+    fireEvent.press(await findByTestId('report-other-submit'));
+
+    await waitFor(() =>
+      expect(friendsApi.reportUser).toHaveBeenCalledWith(
+        'user-1', 'juan', 'other', 'Me mandó mensajes amenazantes'
+      )
+    );
+    await waitFor(() => expect(spy).toHaveBeenCalledWith('Denuncia enviada', expect.any(String)));
+  });
+
+  it('handleSubmitOtherReason: shows alert on reportUser error', async () => {
+    friendsApi.reportUser.mockRejectedValueOnce({
+      response: { data: { error: 'Debés describir el motivo de la denuncia' } },
+    });
+    const spy = jest.spyOn(Alert, 'alert');
+    const { findByText, findByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-other'));
+
+    fireEvent.changeText(await findByTestId('report-other-input'), 'Detalle del caso');
+    fireEvent.press(await findByTestId('report-other-submit'));
+
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith('Error', 'Debés describir el motivo de la denuncia')
+    );
+  });
+
+  it('report-cancel from the free-text step resets back to the reason list on reopen', async () => {
+    const { findByText, findByTestId, queryByTestId } = render(<UserProfileScreen />);
+    fireEvent.press(await findByText('Denunciar usuario'));
+    fireEvent.press(await findByTestId('report-reason-other'));
+    fireEvent.changeText(await findByTestId('report-other-input'), 'texto que se debería perder');
+    fireEvent.press(await findByTestId('report-cancel'));
+
+    fireEvent.press(await findByText('Denunciar usuario'));
+    expect(await findByTestId('report-reason-other')).toBeTruthy();
+    expect(queryByTestId('report-other-input')).toBeNull();
+    expect(friendsApi.reportUser).not.toHaveBeenCalled();
   });
 });
