@@ -247,9 +247,9 @@ describe('PreferencesScreen', () => {
       getPrivacyStatus.mockResolvedValueOnce({ isPrivate: true });
       setPrivacyStatus.mockResolvedValueOnce({ isPrivate: false });
 
-      const { getByRole, findByText } = render(<PreferencesScreen />);
+      const { getByTestId, findByText } = render(<PreferencesScreen />);
       await findByText('Modo Privado ⚡');
-      const switchEl = getByRole('switch');
+      const switchEl = getByTestId('privacy-switch');
 
       await act(async () => {
         fireEvent(switchEl, 'onValueChange', false);
@@ -263,9 +263,9 @@ describe('PreferencesScreen', () => {
       getPrivacyStatus.mockResolvedValueOnce({ isPrivate: false });
       setPrivacyStatus.mockRejectedValueOnce(new Error('Timeout'));
 
-      const { getByRole, findByText } = render(<PreferencesScreen />);
+      const { getByTestId, findByText } = render(<PreferencesScreen />);
       await findByText('Modo Privado ⚡');
-      const switchEl = getByRole('switch');
+      const switchEl = getByTestId('privacy-switch');
 
       await act(async () => {
         fireEvent(switchEl, 'onValueChange', true);
@@ -278,9 +278,9 @@ describe('PreferencesScreen', () => {
       getPrivacyStatus.mockResolvedValueOnce({ isPrivate: false });
       setPrivacyStatus.mockRejectedValueOnce({});
 
-      const { getByRole, findByText } = render(<PreferencesScreen />);
+      const { getByTestId, findByText } = render(<PreferencesScreen />);
       await findByText('Modo Privado ⚡');
-      const switchEl = getByRole('switch');
+      const switchEl = getByTestId('privacy-switch');
 
       await act(async () => {
         fireEvent(switchEl, 'onValueChange', true);
